@@ -86,6 +86,7 @@ const MainAppContent: React.FC = () => {
         syncStatus={dbSyncStatus} 
         storeName={settings.storeName}
         logoUrl={settings.faviconUrl}
+        themeName={settings.websiteTheme}
       />
     );
   }
