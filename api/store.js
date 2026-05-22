@@ -7,7 +7,13 @@ async function connectToDatabase() {
   if (cachedClient && cachedDb) {
     return { client: cachedClient, db: cachedDb };
   }
-  const uri = process.env.MONGODB_URI || 'mongodb+srv://jouhanarbi_db_user:kE3tZAKQ31KV4Xru@cluster0.mwrngyd.mongodb.net/?appName=Cluster0';
+  let uri = process.env.MONGODB_URI;
+  if (uri) {
+    uri = uri.trim().replace(/^["']|["']$/g, '');
+  }
+  if (!uri || (!uri.startsWith('mongodb://') && !uri.startsWith('mongodb+srv://'))) {
+    uri = 'mongodb+srv://jouhanarbi_db_user:kE3tZAKQ31KV4Xru@cluster0.mwrngyd.mongodb.net/?appName=Cluster0';
+  }
   const client = new MongoClient(uri);
   await client.connect();
   const db = client.db('aether_store');
@@ -65,7 +71,7 @@ export default async function handler(req, res) {
       }
 
       // Option 2: Saved as bulk keys
-      const keys = ['products', 'orders', 'customers', 'promoCodes', 'settings', 'userCredentials', 'simulatedEmails'];
+      const keys = ['products', 'orders', 'customers', 'promoCodes', 'settings', 'userCredentials', 'simulatedEmails', 'adminPermissions'];
       const operations = [];
       for (const key of keys) {
         if (body[key] !== undefined) {

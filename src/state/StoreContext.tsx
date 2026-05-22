@@ -339,6 +339,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             if (Array.isArray(data.customers)) setCustomers(data.customers);
             if (Array.isArray(data.promoCodes)) setPromoCodes(data.promoCodes);
             if (data.settings && typeof data.settings === 'object') setSettings(prev => ({ ...prev, ...data.settings }));
+            if (data.adminPermissions && typeof data.adminPermissions === 'object') setAdminPermissions(data.adminPermissions);
             if (Array.isArray(data.userCredentials) && data.userCredentials.length > 0) setUserCredentials(data.userCredentials);
             if (Array.isArray(data.simulatedEmails)) setSimulatedEmails(data.simulatedEmails);
             console.log('🎉 Successfully sync\'d all collections from MongoDB cluster');
@@ -366,7 +367,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           promoCodes,
           settings,
           userCredentials,
-          simulatedEmails
+          simulatedEmails,
+          adminPermissions
         };
         const response = await fetch('/api/store', {
           method: 'POST',
@@ -386,7 +388,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }, 1200);
 
     return () => clearTimeout(timer);
-  }, [products, orders, customers, promoCodes, settings, userCredentials, simulatedEmails, dbLoading]);
+  }, [products, orders, customers, promoCodes, settings, userCredentials, simulatedEmails, adminPermissions, dbLoading]);
 
   // --- Synchronization Effects ---
   useEffect(() => {
