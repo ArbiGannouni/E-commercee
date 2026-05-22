@@ -27,6 +27,17 @@ app.all('/api/store', async (req, res) => {
   }
 });
 
+// Gemini AI SEO Generator endpoint
+import seoHandler from './api/seo.js';
+app.all('/api/seo', async (req, res) => {
+  try {
+    await seoHandler(req, res);
+  } catch (err) {
+    console.error('Express SEO generator handler error:', err);
+    res.status(500).json({ error: 'Internal Server Error', details: err.message });
+  }
+});
+
 // Dynamic XML Sitemap endpoint
 import sitemapHandler from './api/sitemap.js';
 app.all('/sitemap.xml', async (req, res) => {

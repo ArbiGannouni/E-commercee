@@ -173,6 +173,13 @@ export const AdminPanel: React.FC = () => {
   const [newProdHighlight, setNewProdHighlight] = useState('');
   const [newProdTags, setNewProdTags] = useState('');
 
+  // SEO states for new products and AI workers
+  const [newProdSeoTitle, setNewProdSeoTitle] = useState('');
+  const [newProdSeoDesc, setNewProdSeoDesc] = useState('');
+  const [newProdSeoKeywords, setNewProdSeoKeywords] = useState('');
+  const [isGeneratingSeo, setIsGeneratingSeo] = useState(false);
+  const [seoError, setSeoError] = useState<string | null>(null);
+
   // Custom Category States
   const [isCustomCategory, setIsCustomCategory] = useState(false);
   const [customCategoryName, setCustomCategoryName] = useState('');
@@ -319,7 +326,10 @@ export const AdminPanel: React.FC = () => {
       stock: Number(newProdStock),
       image: newProdImage || 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=800&auto=format&fit=crop&q=80',
       highlights: highlightList,
-      tags: tagList
+      tags: tagList,
+      seoTitle: newProdSeoTitle ? newProdSeoTitle.trim() : undefined,
+      seoDescription: newProdSeoDesc ? newProdSeoDesc.trim() : undefined,
+      seoKeywords: newProdSeoKeywords ? newProdSeoKeywords.trim() : undefined
     });
 
     // Reset Form
@@ -331,6 +341,10 @@ export const AdminPanel: React.FC = () => {
     setNewProdImage('');
     setNewProdHighlight('');
     setNewProdTags('');
+    setNewProdSeoTitle('');
+    setNewProdSeoDesc('');
+    setNewProdSeoKeywords('');
+    setSeoError(null);
     setCustomCategoryName('');
     setIsCustomCategory(false);
     setShowAddForm(false);
@@ -342,6 +356,48 @@ export const AdminPanel: React.FC = () => {
     if (editingProduct) {
       editProduct(editingProduct);
       setEditingProduct(null);
+    }
+  };
+
+  const generateProductSeo = async (name: string, desc: string, cat: string, isForEditForm: boolean) => {
+    if (!name.trim()) {
+      alert('Please fill in the product title first to generate targeted SEO metadata.');
+      return;
+    }
+    setIsGeneratingSeo(true);
+    setSeoError(null);
+    try {
+      const response = await fetch('/api/seo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          productName: name,
+          description: desc,
+          category: cat
+        })
+      });
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || errData.details || 'Failed to generate SEO metadata.');
+      }
+      const data = await response.json();
+      if (isForEditForm && editingProduct) {
+        setEditingProduct({
+          ...editingProduct,
+          seoTitle: data.seoTitle,
+          seoDescription: data.seoDescription,
+          seoKeywords: data.seoKeywords
+        });
+      } else {
+        setNewProdSeoTitle(data.seoTitle || '');
+        setNewProdSeoDesc(data.seoDescription || '');
+        setNewProdSeoKeywords(data.seoKeywords || '');
+      }
+    } catch (err: any) {
+      console.error('SEO Generation error:', err);
+      setSeoError(err.message || 'An error occurred during Gemini SEO generation.');
+    } finally {
+      setIsGeneratingSeo(false);
     }
   };
 
@@ -967,6 +1023,73 @@ export const AdminPanel: React.FC = () => {
                 ></textarea>
               </div>
 
+              {/* AI SEO Generation Panel for Creation */}
+              <div className="border border-indigo-100 bg-indigo-50/20 rounded-xl p-4 space-y-3">
+                <div className="flex items-center justify-between pb-2 border-b border-indigo-100/50">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-xs font-bold text-indigo-950 uppercase tracking-wide">✨ AI SEO Generator</span>
+                    <span className="text-[9px] font-mono font-extrabold bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded uppercase tracking-wider">Gemini Active</span>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={isGeneratingSeo || !newProdName}
+                    onClick={() => generateProductSeo(newProdName, newProdDesc, isCustomCategory ? customCategoryName : newProdCategory, false)}
+                    className="flex items-center space-x-1 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white text-[10px] font-bold rounded-lg transition-all shadow-xs cursor-pointer"
+                  >
+                    {isGeneratingSeo ? (
+                      <>
+                        <span className="h-3 w-3 border-2 border-indigo-100 border-t-white rounded-full animate-spin mr-1" />
+                        <span>Generating...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Optimize Metadata</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {seoError && (
+                  <p className="text-[10.5px] font-semibold text-red-500 bg-red-50/50 border border-red-100 rounded-lg p-2">
+                    ⚠️ {seoError}
+                  </p>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[9.5px] font-mono font-bold uppercase tracking-wider text-slate-450 mb-1">Meta Index Title (SEO)</label>
+                    <input
+                      type="text"
+                      value={newProdSeoTitle}
+                      onChange={(e) => setNewProdSeoTitle(e.target.value)}
+                      placeholder="e.g. Brand Name — Handcrafted Walnut desk riser"
+                      className="w-full rounded bg-white border border-slate-200 p-2 text-xs outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[9.5px] font-mono font-bold uppercase tracking-wider text-slate-450 mb-1">Search Keywords / Index Keys</label>
+                    <input
+                      type="text"
+                      value={newProdSeoKeywords}
+                      onChange={(e) => setNewProdSeoKeywords(e.target.value)}
+                      placeholder="desk mat, woolen desk, desk organizer, premium office"
+                      className="w-full rounded bg-white border border-slate-200 p-2 text-xs outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[9.5px] font-mono font-bold uppercase tracking-wider text-slate-450 mb-1">Meta Description / Search Snippet (SEO)</label>
+                  <textarea
+                    rows={2}
+                    value={newProdSeoDesc}
+                    onChange={(e) => setNewProdSeoDesc(e.target.value)}
+                    placeholder="Engaging high-conversion organic description..."
+                    className="w-full rounded bg-white border border-slate-200 p-2 text-xs outline-none focus:border-indigo-500"
+                  ></textarea>
+                </div>
+              </div>
+
               <div className="flex justify-end space-x-2 pt-2 text-slate-700">
                 <button
                   type="button"
@@ -1081,6 +1204,73 @@ export const AdminPanel: React.FC = () => {
                   placeholder="Detail natural materials and durability criteria spec..."
                   className="w-full rounded bg-slate-50 border border-slate-200 p-2 text-xs outline-none focus:bg-white text-slate-800"
                 ></textarea>
+              </div>
+
+              {/* AI SEO Generation Panel */}
+              <div className="border border-indigo-100 bg-indigo-50/20 rounded-xl p-4 space-y-3">
+                <div className="flex items-center justify-between pb-2 border-b border-indigo-100/50">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-xs font-bold text-indigo-950 uppercase tracking-wide">✨ AI SEO Generator</span>
+                    <span className="text-[9px] font-mono font-extrabold bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded uppercase tracking-wider">Gemini Active</span>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={isGeneratingSeo || !editingProduct.name}
+                    onClick={() => generateProductSeo(editingProduct.name, editingProduct.description, editingProduct.category, true)}
+                    className="flex items-center space-x-1 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white text-[10px] font-bold rounded-lg transition-all shadow-xs cursor-pointer"
+                  >
+                    {isGeneratingSeo ? (
+                      <>
+                        <span className="h-3 w-3 border-2 border-indigo-100 border-t-white rounded-full animate-spin mr-1" />
+                        <span>Generating...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Optimize Metadata</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {seoError && (
+                  <p className="text-[10.5px] font-semibold text-red-500 bg-red-50/50 border border-red-100 rounded-lg p-2">
+                    ⚠️ {seoError}
+                  </p>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[9.5px] font-mono font-bold uppercase tracking-wider text-slate-450 mb-1">Meta Index Title (SEO)</label>
+                    <input
+                      type="text"
+                      value={editingProduct.seoTitle || ''}
+                      onChange={(e) => setEditingProduct({ ...editingProduct, seoTitle: e.target.value })}
+                      placeholder="e.g. Brand Name — Handcrafted Walnut desk riser"
+                      className="w-full rounded bg-white border border-slate-200 p-2 text-xs outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[9.5px] font-mono font-bold uppercase tracking-wider text-slate-450 mb-1">Search Keywords / Index Keys</label>
+                    <input
+                      type="text"
+                      value={editingProduct.seoKeywords || ''}
+                      onChange={(e) => setEditingProduct({ ...editingProduct, seoKeywords: e.target.value })}
+                      placeholder="desk mat, woolen desk, desk organizer, premium office"
+                      className="w-full rounded bg-white border border-slate-200 p-2 text-xs outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[9.5px] font-mono font-bold uppercase tracking-wider text-slate-450 mb-1">Meta Description / Search Snippet (SEO)</label>
+                  <textarea
+                    rows={2}
+                    value={editingProduct.seoDescription || ''}
+                    onChange={(e) => setEditingProduct({ ...editingProduct, seoDescription: e.target.value })}
+                    placeholder="Engaging high-conversion organic description..."
+                    className="w-full rounded bg-white border border-slate-200 p-2 text-xs outline-none focus:border-indigo-500"
+                  ></textarea>
+                </div>
               </div>
 
               <div className="flex justify-end space-x-2 pt-2 text-slate-705">

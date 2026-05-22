@@ -99,6 +99,50 @@ export default defineConfig(() => {
                 res.setHeader('Content-Type', 'application/json');
                 res.end(JSON.stringify({ error: 'Local API server encountered error', details: err.message }));
               }
+            } else if (req.url && (req.url === '/api/seo' || req.url.startsWith('/api/seo?'))) {
+              let body = '';
+              if (req.method === 'POST') {
+                await new Promise<void>((resolve) => {
+                  req.on('data', chunk => { body += chunk; });
+                  req.on('end', () => resolve());
+                });
+              }
+
+              const vercelRes = {
+                status(code: number) {
+                  res.statusCode = code;
+                  return this;
+                },
+                json(data: any) {
+                  res.setHeader('Content-Type', 'application/json');
+                  res.end(JSON.stringify(data));
+                  return this;
+                },
+                setHeader(name: string, value: string) {
+                  res.setHeader(name, value);
+                  return this;
+                },
+                end(data?: any) {
+                  res.end(data);
+                  return this;
+                }
+              };
+
+              const vercelReq = {
+                method: req.method,
+                body: body ? JSON.parse(body) : null,
+                headers: req.headers
+              };
+
+              try {
+                const { default: handler } = await import('./api/seo.js');
+                await handler(vercelReq as any, vercelRes as any);
+              } catch (err: any) {
+                console.error('Local Development SEO Error:', err);
+                res.statusCode = 500;
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify({ error: 'Local SEO worker encountered error', details: err.message }));
+              }
             } else {
               next();
             }

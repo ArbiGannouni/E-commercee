@@ -16,6 +16,9 @@ export interface Product {
   stock: number;
   highlights: string[];
   tags: string[];
+  seoTitle?: string;
+  seoDescription?: string;
+  seoKeywords?: string;
 }
 
 export interface CartItem {
