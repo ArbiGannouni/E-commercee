@@ -323,6 +323,71 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return [];
   });
 
+  // --- Database Synchronization ---
+  const [dbLoading, setDbLoading] = useState(true);
+
+  // Load state from MongoDB on Mount
+  useEffect(() => {
+    const loadFromDatabase = async () => {
+      try {
+        const response = await fetch('/api/store');
+        if (response.ok) {
+          const data = await response.json();
+          if (data && Object.keys(data).length > 0) {
+            if (Array.isArray(data.products) && data.products.length > 0) setProducts(data.products);
+            if (Array.isArray(data.orders)) setOrders(data.orders);
+            if (Array.isArray(data.customers)) setCustomers(data.customers);
+            if (Array.isArray(data.promoCodes)) setPromoCodes(data.promoCodes);
+            if (data.settings && typeof data.settings === 'object') setSettings(prev => ({ ...prev, ...data.settings }));
+            if (Array.isArray(data.userCredentials) && data.userCredentials.length > 0) setUserCredentials(data.userCredentials);
+            if (Array.isArray(data.simulatedEmails)) setSimulatedEmails(data.simulatedEmails);
+            console.log('🎉 Successfully sync\'d all collections from MongoDB cluster');
+          }
+        }
+      } catch (err) {
+        console.error('Failed to sync state from database, using offline storage:', err);
+      } finally {
+        setDbLoading(false);
+      }
+    };
+    loadFromDatabase();
+  }, []);
+
+  // Save changes back to MongoDB (debounced to prevent spamming server)
+  useEffect(() => {
+    if (dbLoading) return; // Wait until initial sync finishes to avoid overwriting
+
+    const timer = setTimeout(async () => {
+      try {
+        const payload = {
+          products,
+          orders,
+          customers,
+          promoCodes,
+          settings,
+          userCredentials,
+          simulatedEmails
+        };
+        const response = await fetch('/api/store', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        });
+        if (response.ok) {
+          console.log('💾 Successfully saved active state backup to MongoDB');
+        } else {
+          console.error('Failed to dump state backup to MongoDB');
+        }
+      } catch (err) {
+        console.error('Error auto-syncing to MongoDB:', err);
+      }
+    }, 1200);
+
+    return () => clearTimeout(timer);
+  }, [products, orders, customers, promoCodes, settings, userCredentials, simulatedEmails, dbLoading]);
+
   // --- Synchronization Effects ---
   useEffect(() => {
     localStorage.setItem('aether_products', JSON.stringify(products));

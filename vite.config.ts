@@ -5,7 +5,67 @@ import {defineConfig} from 'vite';
 
 export default defineConfig(() => {
   return {
-    plugins: [react(), tailwindcss()],
+    plugins: [
+      react(), 
+      tailwindcss(),
+      {
+        name: 'api-server-middleware',
+        configureServer(server) {
+          server.middlewares.use(async (req, res, next) => {
+            if (req.url && (req.url === '/api/store' || req.url.startsWith('/api/store?'))) {
+              // Parse POST body if present
+              let body = '';
+              if (req.method === 'POST') {
+                await new Promise<void>((resolve) => {
+                  req.on('data', chunk => { body += chunk; });
+                  req.on('end', () => resolve());
+                });
+              }
+
+              // Create Vercel compatible req/res wrappers
+              const vercelRes = {
+                status(code: number) {
+                  res.statusCode = code;
+                  return this;
+                },
+                json(data: any) {
+                  res.setHeader('Content-Type', 'application/json');
+                  res.end(JSON.stringify(data));
+                  return this;
+                },
+                setHeader(name: string, value: string) {
+                  res.setHeader(name, value);
+                  return this;
+                },
+                end(data?: any) {
+                  res.end(data);
+                  return this;
+                }
+              };
+
+              const vercelReq = {
+                method: req.method,
+                body: body ? JSON.parse(body) : null,
+                headers: req.headers
+              };
+
+              try {
+                // Dynamically import the handler to connect to MongoDB
+                const { default: handler } = await import('./api/store.js');
+                await handler(vercelReq as any, vercelRes as any);
+              } catch (err: any) {
+                console.error('Local Development API Error:', err);
+                res.statusCode = 500;
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify({ error: 'Local API server encountered error', details: err.message }));
+              }
+            } else {
+              next();
+            }
+          });
+        }
+      }
+    ],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),
