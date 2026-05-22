@@ -1,0 +1,6 @@
+{
+  "name": "E-Commerce App & Admin Panel",
+  "description": "A high-fidelity minimalist design storefront paired with an interactive admin control console for inventory, orders, and sales analytics tracking.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

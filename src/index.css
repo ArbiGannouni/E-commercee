@@ -1,0 +1,40 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Outfit", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+  
+  --color-brand-cream: #F8FAFC;
+  --color-brand-accent: #4F46E5;
+  --color-brand-faded: #64748B;
+  --border-radius-custom: 16px;
+}
+
+/* Custom premium scrollbar styling matching Sleek layout */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 8px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}
+
+/* Base body adjustments matching Sleek modern slate layout */
+body {
+  font-family: var(--font-sans);
+  background-color: #F8FAFC; /* slate-50 */
+  color: #0F172A; /* slate-900 */
+  overflow-x: hidden;
+}
