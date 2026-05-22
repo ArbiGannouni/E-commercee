@@ -106,4 +106,12 @@ export interface AdminPermissions {
   viewSettings: boolean;
 }
 
+export interface FooterFeature {
+  id: string;
+  title: string;
+  desc: string;
+  icon: string;
+}
+
+
 

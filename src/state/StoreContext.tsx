@@ -4,7 +4,7 @@
  */
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Product, CartItem, Order, Customer, PromoCode, OrderStatus, SimulatedEmail, UserRole, AdminPermissions } from '../types';
+import { Product, CartItem, Order, Customer, PromoCode, OrderStatus, SimulatedEmail, UserRole, AdminPermissions, FooterFeature } from '../types';
 import { INITIAL_PRODUCTS, INITIAL_CUSTOMERS, INITIAL_ORDERS, INITIAL_PROMO_CODES } from '../data/mockProducts';
 
 interface StoreSettings {
@@ -52,6 +52,27 @@ interface StoreSettings {
   seoTitle?: string;
   seoDescription?: string;
   seoKeywords?: string;
+
+  // Custom Footer Configurations
+  customFooterText?: string;
+  customFooterIntro?: string;
+  customFooterEmail?: string;
+  footerFeature1Title?: string;
+  footerFeature1Desc?: string;
+  footerFeature2Title?: string;
+  footerFeature2Desc?: string;
+  footerFeature3Title?: string;
+  footerFeature3Desc?: string;
+  footerFeature4Title?: string;
+  footerFeature4Desc?: string;
+  footerCol1Title?: string;
+  footerCol2Title?: string;
+  footerSupportTitle?: string;
+  footerSupportDesc?: string;
+  footerStatusText?: string;
+  footerFeatures?: FooterFeature[];
+  googleAnalyticsId?: string;
+  metaApiKey?: string;
 }
 
 interface StoreContextType {
@@ -61,7 +82,7 @@ interface StoreContextType {
   customers: Customer[];
   promoCodes: PromoCode[];
   activePromo: PromoCode | null;
-  currentView: 'shop' | 'admin' | 'login';
+  currentView: 'shop' | 'admin' | 'login' | 'checkout';
   currentCategory: string;
   searchKeyword: string;
   activeProductDetail: Product | null;
@@ -83,6 +104,7 @@ interface StoreContextType {
   adminPermissions: AdminPermissions;
   updateAdminPermissions: (permissions: Partial<AdminPermissions>) => void;
   updateUserRole: (email: string, role: UserRole) => void;
+  updateUserPassword: (email: string, pass: string) => void;
   createNewAdmin: (name: string, email: string, passwordHash: string, role: 'admin' | 'super_admin') => { success: boolean; message: string };
   userCredentials: { email: string; name: string; passwordHash: string; role: UserRole }[];
   loginUser: (email: string, password: string) => { success: boolean; message: string; role: UserRole | null };
@@ -109,7 +131,7 @@ interface StoreContextType {
     paymentMethod: string;
   }) => Order | null;
   updateOrderStatus: (orderId: string, status: OrderStatus) => void;
-  setView: (view: 'shop' | 'admin' | 'login') => void;
+  setView: (view: 'shop' | 'admin' | 'login' | 'checkout') => void;
   setCategory: (category: string) => void;
   setSearch: (keyword: string) => void;
   setDetail: (product: Product | null) => void;
@@ -208,7 +230,33 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       faviconUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=128&h=128&fit=crop&q=80',
       seoTitle: 'AETHER OBJECTS — Timeless Artisan Storefront & Workflow Instruments',
       seoDescription: 'Handcrafted premium work tools, sculptural lighting coordinates, fine stationery diaries, and desk furniture. Engineered to harmonize and elevate your creative workspace.',
-      seoKeywords: 'artisan workspace, desk instruments, minimalist organizer, fine stationery, walnut risers, designer shop, Tunisia'
+      seoKeywords: 'artisan workspace, desk instruments, minimalist organizer, fine stationery, walnut risers, designer shop, Tunisia',
+
+      // Custom Footer Defaults
+      customFooterIntro: 'Curating high-grade functional instruments, workspace structures, and premium modern accessories constructed with genuine materials designed to endure.',
+      customFooterText: 'Handcrafted in the digital workspaces. All rights reserved.',
+      customFooterEmail: 'support@aether.design',
+      footerFeature1Title: 'Express Shipping',
+      footerFeature1Desc: 'Free delivery on orders above $150.00',
+      footerFeature2Title: '30-Day Escrow Returns',
+      footerFeature2Desc: 'Hassle-free shipping envelope included',
+      footerFeature3Title: 'Encrypted Security',
+      footerFeature3Desc: '256-bit bank standard SSL certificate protection',
+      footerFeature4Title: 'Full Customer Care',
+      footerFeature4Desc: 'Available via live correspondence portals',
+      footerCol1Title: 'Catalogue',
+      footerCol2Title: 'Administrative',
+      footerSupportTitle: 'Global Customer Support',
+      footerSupportDesc: 'Have inquiries about custom corporate pricing or genuine material specifications?',
+      footerStatusText: 'PLATFORM STATUS: SECURE PORTAL',
+      footerFeatures: [
+        { id: '1', title: 'Express Shipping', desc: 'Free delivery on orders above $150.00', icon: 'truck' },
+        { id: '2', title: '30-Day Escrow Returns', desc: 'Hassle-free shipping envelope included', icon: 'rotate-ccw' },
+        { id: '3', title: 'Encrypted Security', desc: '256-bit bank standard SSL certificate protection', icon: 'shield' },
+        { id: '4', title: 'Full Customer Care', desc: 'Available via live correspondence portals', icon: 'help-circle' }
+      ],
+      googleAnalyticsId: '',
+      metaApiKey: ''
     };
     if (saved) {
       try {
@@ -222,7 +270,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   });
 
   // --- Session Navigation States ---
-  const [currentView, setView] = useState<'shop' | 'admin' | 'login'>('shop');
+  const [currentView, setView] = useState<'shop' | 'admin' | 'login' | 'checkout'>('shop');
   const [currentCategory, setCategory] = useState<string>('All');
   const [searchKeyword, setSearchKeyword] = useState<string>('');
   const setSearch = setSearchKeyword;
@@ -574,6 +622,17 @@ Aether Automatons & Supply Bot`,
       // Update logged in user role too if they modified themselves
       if (currentAdminUser && currentAdminUser.email.toLowerCase() === email.toLowerCase()) {
         setCurrentAdminUser(prevAdmin => prevAdmin ? { ...prevAdmin, role } : null);
+      }
+      return updated;
+    });
+  };
+
+  const updateUserPassword = (email: string, pass: string) => {
+    setUserCredentials(prev => {
+      const updated = prev.map(u => u.email.toLowerCase() === email.toLowerCase() ? { ...u, passwordHash: pass } : u);
+      // Update logged in user password if they modified themselves
+      if (currentAdminUser && currentAdminUser.email.toLowerCase() === email.toLowerCase()) {
+        setCurrentAdminUser(prevAdmin => prevAdmin ? { ...prevAdmin, passwordHash: pass } : null);
       }
       return updated;
     });
@@ -941,6 +1000,7 @@ Aether Automatons & Supply Bot`,
       adminPermissions,
       updateAdminPermissions,
       updateUserRole,
+      updateUserPassword,
       createNewAdmin,
       userCredentials,
       simulatedEmails,

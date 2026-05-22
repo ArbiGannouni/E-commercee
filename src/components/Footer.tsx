@@ -5,7 +5,27 @@
 
 import React from 'react';
 import { useStore } from '../state/StoreContext';
-import { ArrowUpRight, HelpCircle, Shield, RotateCcw, Truck } from 'lucide-react';
+import { 
+  ArrowUpRight, HelpCircle, Shield, RotateCcw, Truck, 
+  Heart, Award, Clock, Sparkles, CheckCircle, Tag, Undo, Star, Gift, MessageSquare 
+} from 'lucide-react';
+
+const iconMap: Record<string, React.ComponentType<any>> = {
+  'truck': Truck,
+  'rotate-ccw': RotateCcw,
+  'shield': Shield,
+  'help-circle': HelpCircle,
+  'heart': Heart,
+  'award': Award,
+  'clock': Clock,
+  'sparkles': Sparkles,
+  'check-circle': CheckCircle,
+  'tag': Tag,
+  'undo': Undo,
+  'star': Star,
+  'gift': Gift,
+  'message-square': MessageSquare
+};
 
 export const Footer: React.FC = () => {
   const { setView, settings, setTrackingOrderId } = useStore();
@@ -16,55 +36,47 @@ export const Footer: React.FC = () => {
 
   const currentYear = new Date().getFullYear();
 
+  const featuresList = settings.footerFeatures || [
+    { id: '1', title: settings.footerFeature1Title || 'Express Shipping', desc: settings.footerFeature1Desc || 'Free delivery on orders above $150.00', icon: 'truck' },
+    { id: '2', title: settings.footerFeature2Title || '30-Day Escrow Returns', desc: settings.footerFeature2Desc || 'Hassle-free shipping envelope included', icon: 'rotate-ccw' },
+    { id: '3', title: settings.footerFeature3Title || 'Encrypted Security', desc: settings.footerFeature3Desc || '256-bit bank standard SSL certificate protection', icon: 'shield' },
+    { id: '4', title: settings.footerFeature4Title || 'Full Customer Care', desc: settings.footerFeature4Desc || 'Available via live correspondence portals', icon: 'help-circle' }
+  ];
+
+  const gridColsClass = featuresList.length === 1 
+    ? 'grid-cols-1' 
+    : featuresList.length === 2 
+    ? 'grid-cols-1 sm:grid-cols-2 md:max-w-2xl mx-auto' 
+    : featuresList.length === 3 
+    ? 'grid-cols-1 sm:grid-cols-3' 
+    : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4';
+
   return (
     <footer className="mt-24 border-t border-slate-100 bg-slate-50 text-slate-600">
       
       {/* Upper Features Ribbons */}
-      <div className="border-b border-slate-200/60 bg-white">
-        <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="flex items-center space-x-3.5">
-              <div className="rounded-full bg-indigo-50 p-2 text-indigo-650 border border-indigo-100">
-                <Truck className="h-4.5 w-4.5" />
-              </div>
-              <div>
-                <h4 className="text-xs font-semibold text-slate-900 tracking-tight">Express Shipping</h4>
-                <p className="text-[11px] text-slate-400">Free delivery on orders above $150.00</p>
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-3.5">
-              <div className="rounded-full bg-indigo-50 p-2 text-indigo-650 border border-indigo-100">
-                <RotateCcw className="h-4.5 w-4.5" />
-              </div>
-              <div>
-                <h4 className="text-xs font-semibold text-slate-900 tracking-tight">30-Day Escrow Returns</h4>
-                <p className="text-[11px] text-slate-400">Hassle-free shipping envelope included</p>
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-3.5">
-              <div className="rounded-full bg-indigo-50 p-2 text-indigo-650 border border-indigo-100">
-                <Shield className="h-4.5 w-4.5" />
-              </div>
-              <div>
-                <h4 className="text-xs font-semibold text-slate-900 tracking-tight">Encrypted Security</h4>
-                <p className="text-[11px] text-slate-400">256-bit bank standard SSL certificate protection</p>
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-3.5">
-              <div className="rounded-full bg-indigo-50 p-2 text-indigo-650 border border-indigo-100">
-                <HelpCircle className="h-4.5 w-4.5" />
-              </div>
-              <div>
-                <h4 className="text-xs font-semibold text-slate-900 tracking-tight">Full Customer Care</h4>
-                <p className="text-[11px] text-slate-400">Available via live correspondence portals</p>
-              </div>
+      {featuresList.length > 0 && (
+        <div className="border-b border-slate-200/60 bg-white">
+          <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+            <div className={`grid gap-6 ${gridColsClass}`}>
+              {featuresList.map((feature, idx) => {
+                const IconComp = iconMap[feature.icon] || HelpCircle;
+                return (
+                  <div key={feature.id || idx} className="flex items-start space-x-3.5">
+                    <div className="rounded-full bg-indigo-50 p-2 text-indigo-650 border border-indigo-100 shrink-0">
+                      <IconComp className="h-4.5 w-4.5" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-semibold text-slate-900 tracking-tight leading-none mb-1">{feature.title}</h4>
+                      <p className="text-[11px] text-slate-400 leading-normal">{feature.desc}</p>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Main Footer Links & Directory */}
       <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
@@ -94,11 +106,11 @@ export const Footer: React.FC = () => {
                 {settings.storeName}
               </span>
             </div>
-            <p className="max-w-xs text-xs leading-relaxed text-slate-405">
-              Curating high-grade functional instruments, workspace structures, and premium modern accessories constructed with genuine materials designed to endure.
+            <p className="max-w-xs text-xs leading-relaxed text-slate-405 whitespace-pre-line">
+              {settings.customFooterIntro || 'Curating high-grade functional instruments, workspace structures, and premium modern accessories constructed with genuine materials designed to endure.'}
             </p>
-            <div className="font-mono text-[10px] text-slate-400">
-              PLATFORM STATUS: <span className="text-indigo-600 font-semibold tracking-wider">● SECURE PORTAL</span>
+            <div className="font-mono text-[10px] text-slate-400 uppercase">
+              {settings.footerStatusText || 'PLATFORM STATUS: ● SECURE PORTAL'}
             </div>
           </div>
 
@@ -106,7 +118,7 @@ export const Footer: React.FC = () => {
           <div className="mt-12 grid grid-cols-2 gap-8 xl:col-span-2 xl:mt-0">
             <div className="md:grid md:grid-cols-2 md:gap-8">
               <div>
-                <h3 className="font-display text-xs font-bold uppercase tracking-[0.15em] text-slate-900">Catalogue</h3>
+                <h3 className="font-display text-xs font-bold uppercase tracking-[0.15em] text-slate-900">{settings.footerCol1Title || 'Catalogue'}</h3>
                 <ul className="mt-4 space-y-2.5 text-xs">
                   <li>
                     <button onClick={() => { setView('shop'); setTrackingOrderId(null); }} className="hover:text-indigo-650 tracking-wide transition-colors">
@@ -126,7 +138,7 @@ export const Footer: React.FC = () => {
                 </ul>
               </div>
               <div className="mt-12 md:mt-0">
-                <h3 className="font-display text-xs font-bold uppercase tracking-[0.15em] text-slate-900">Administrative</h3>
+                <h3 className="font-display text-xs font-bold uppercase tracking-[0.15em] text-slate-900">{settings.footerCol2Title || 'Administrative'}</h3>
                 <ul className="mt-4 space-y-2.5 text-xs">
                   <li>
                     <button onClick={() => setView('admin')} className="flex items-center hover:text-indigo-650 tracking-wide transition-colors">
@@ -151,15 +163,15 @@ export const Footer: React.FC = () => {
             </div>
 
             <div className="space-y-6">
-              <h3 className="font-display text-xs font-bold uppercase tracking-[0.15em] text-slate-900">Global Customer Support</h3>
+              <h3 className="font-display text-xs font-bold uppercase tracking-[0.15em] text-slate-900">{settings.footerSupportTitle || 'Global Customer Support'}</h3>
               <p className="text-xs leading-relaxed text-slate-405">
-                Have inquiries about custom corporate pricing or genuine material specifications?
+                {settings.footerSupportDesc || 'Have inquiries about custom corporate pricing or genuine material specifications?'}
               </p>
               <div className="inline-flex rounded-lg border border-slate-205 bg-slate-100 p-3.5">
                 <div className="text-left">
                   <span className="block font-mono text-[10px] text-slate-450 mb-0.5">DIRECT ASSISTANT:</span>
-                   <a href="mailto:support@aether.design" className="block text-xs font-semibold text-slate-900 hover:text-indigo-600 transition-colors">
-                     support@aether.design
+                   <a href={`mailto:${settings.customFooterEmail || 'support@aether.design'}`} className="block text-xs font-semibold text-slate-900 hover:text-indigo-600 transition-colors">
+                     {settings.customFooterEmail || 'support@aether.design'}
                    </a>
                 </div>
               </div>
@@ -169,8 +181,8 @@ export const Footer: React.FC = () => {
 
         {/* Lower copyright bar */}
         <div className="mt-16 flex flex-col justify-between border-t border-slate-200/65 pt-8 sm:flex-row items-center space-y-4 sm:space-y-0">
-          <p className="text-[11px] text-slate-400">
-            &copy; {currentYear} {settings.storeName}. Handcrafted in the digital workspaces. All rights reserved.
+          <p className="text-[11px] text-slate-400 whitespace-pre-line">
+            &copy; {currentYear} {settings.storeName}. {settings.customFooterText || 'Handcrafted in the digital workspaces. All rights reserved.'}
           </p>
           <button
             onClick={handleScrollToTop}

@@ -14,6 +14,7 @@ import { CartDrawer } from './components/CartDrawer';
 import { CheckoutFlow } from './components/CheckoutFlow';
 import { getTheme } from './utils/theme';
 import { LoadingScreen } from './components/LoadingScreen';
+import { CheckoutPage } from './components/CheckoutPage';
 
 const MainAppContent: React.FC = () => {
   const { currentView, settings, activeProductDetail, dbLoading, dbSyncStatus, dbError } = useStore();
@@ -76,6 +77,50 @@ const MainAppContent: React.FC = () => {
     }
     const faviconUrl = settings.faviconUrl || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=128&h=128&fit=crop&q=80';
     faviconLink.setAttribute('href', faviconUrl);
+
+    // 3. Dynamic Google Analytics Injector
+    const gaId = settings.googleAnalyticsId;
+    if (gaId) {
+      let gaScript1 = document.head.querySelector(`script[src*="googletagmanager.com/gtag/js?id="]`);
+      if (!gaScript1) {
+        gaScript1 = document.createElement('script');
+        gaScript1.setAttribute('async', 'true');
+        gaScript1.setAttribute('src', `https://www.googletagmanager.com/gtag/js?id=${gaId}`);
+        document.head.appendChild(gaScript1);
+
+        const gaScript2 = document.createElement('script');
+        gaScript2.textContent = `
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){window.dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', '${gaId}');
+        `;
+        document.head.appendChild(gaScript2);
+      }
+    }
+
+    // 4. Dynamic Meta Pixel/API Key Injector
+    const metaPixelId = settings.metaApiKey;
+    if (metaPixelId) {
+      let metaScript = document.head.querySelector(`script[id="meta-pixel-script"]`);
+      if (!metaScript) {
+        metaScript = document.createElement('script');
+        metaScript.id = 'meta-pixel-script';
+        metaScript.textContent = `
+          !function(f,b,e,v,n,t,s)
+          {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+          n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+          if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+          n.queue=[];t=b.createElement(e);t.async=!0;
+          t.src=v;s=b.getElementsByTagName(e)[0];
+          s.parentNode.insertBefore(t,s)}(window, document,'script',
+          'https://connect.facebook.net/en_US/fbevents.js');
+          fbq('init', '${metaPixelId}');
+          fbq('track', 'PageView');
+        `;
+        document.head.appendChild(metaScript);
+      }
+    }
   }, [settings, currentView, activeProductDetail]);
 
   if (dbLoading && !bypassed) {
@@ -101,6 +146,7 @@ const MainAppContent: React.FC = () => {
       {/* Primary Context Sections */}
       <div className="flex-grow">
         {currentView === 'shop' && <ShopLayout />}
+        {currentView === 'checkout' && <CheckoutPage />}
         {currentView === 'admin' && <AdminPanel />}
         {currentView === 'login' && <LoginPage />}
       </div>

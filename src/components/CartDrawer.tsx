@@ -17,7 +17,7 @@ export const CartDrawer: React.FC = () => {
     applyPromoCode,
     removePromoCode,
     activePromo,
-    setCheckoutOpen,
+    setView,
     settings
   } = useStore();
 
@@ -62,7 +62,7 @@ export const CartDrawer: React.FC = () => {
 
   const handleCheckoutTrigger = () => {
     setCartOpen(false);
-    setCheckoutOpen(true);
+    setView('checkout');
   };
 
   return (

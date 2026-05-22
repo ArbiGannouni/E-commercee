@@ -108,6 +108,12 @@ export const Navbar: React.FC = () => {
                 </button>
               )}
             </form>
+          ) : currentView === 'checkout' ? (
+            <div className="flex items-center space-x-2 text-xs font-mono text-slate-400">
+              <span className={`text-slate-500 font-semibold text-[10px] tracking-wider uppercase px-2 py-0.5 rounded ${isDark ? 'bg-slate-800' : 'bg-slate-100'}`}>ROOT</span>
+              <span>/</span>
+              <span className={`font-semibold tracking-tight text-[11px] ${theme.accentText}`}>SECURE_CHECKOUT_GATEWAY</span>
+            </div>
           ) : (
             <div className="flex items-center space-x-2 text-xs font-mono text-slate-400">
               <span className={`text-slate-500 font-semibold text-[10px] tracking-wider uppercase px-2 py-0.5 rounded ${isDark ? 'bg-slate-800' : 'bg-slate-100'}`}>ROOT</span>

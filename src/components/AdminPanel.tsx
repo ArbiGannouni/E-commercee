@@ -9,9 +9,9 @@ import { Product, Order, PromoCode, OrderStatus, UserRole, AdminPermissions } fr
 import { 
   TrendingUp, Package, ShoppingCart, Users, Coins, Tag, 
   Settings, Trash2, Edit3, Plus, Sliders, CheckCircle, 
-  ArrowRight, ShieldAlert, Lock, Sparkles, Filter, Search,
+  ArrowRight, ShieldAlert, Lock, Sparkles, Filter, Search, ArrowUp, ArrowDown,
   Palette, Mail, Bell, MessageCircle, MessageSquare,
-  Database, Server, CloudLightning, RefreshCw
+  Database, Server, CloudLightning, RefreshCw, Key, Globe
 } from 'lucide-react';
 import { SALES_TRENDS } from '../data/mockProducts';
 
@@ -41,6 +41,7 @@ export const AdminPanel: React.FC = () => {
     adminPermissions,
     updateAdminPermissions,
     updateUserRole,
+    updateUserPassword,
     createNewAdmin,
     userCredentials,
     dbSyncStatus,
@@ -49,8 +50,23 @@ export const AdminPanel: React.FC = () => {
   } = useStore();
 
   // Navigation Sub-views inside Admin Panel
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'orders' | 'customers' | 'promos' | 'settings' | 'emails' | 'permissions'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'orders' | 'customers' | 'promos' | 'settings' | 'emails' | 'permissions' | 'api'>('dashboard');
   const [selectedEmailId, setSelectedEmailId] = useState<string | null>(null);
+
+  // Controls collapse of sections under Store Constants tab
+  const [openSettingsSections, setOpenSettingsSections] = useState<Record<string, boolean>>({
+    blueprints: false,
+    branding: true,
+    footer: false,
+    seo: false,
+    operational: false,
+    previews: false,
+    hero: false,
+    theme: false,
+    database: false,
+    contact: false,
+    apiKeys: false,
+  });
 
   // Security credentials state
   const [adminUser, setAdminUser] = useState('');
@@ -71,14 +87,15 @@ export const AdminPanel: React.FC = () => {
           promos: 'viewPromos',
           emails: 'viewEmails',
           settings: 'viewSettings',
+          api: 'viewSettings',
         };
         const permKey = tabMap[tabId];
         return permKey ? adminPermissions[permKey] === true : true;
       };
 
       if (!isTabAllowed(activeTab)) {
-        const tabsOrder: ('dashboard' | 'products' | 'orders' | 'customers' | 'promos' | 'emails' | 'settings' | 'permissions')[] = [
-          'dashboard', 'products', 'orders', 'customers', 'promos', 'emails', 'settings', 'permissions'
+        const tabsOrder: ('dashboard' | 'products' | 'orders' | 'customers' | 'promos' | 'emails' | 'settings' | 'permissions' | 'api')[] = [
+          'dashboard', 'products', 'orders', 'customers', 'promos', 'emails', 'settings', 'permissions', 'api'
         ];
         const allowedTab = tabsOrder.find(t => isTabAllowed(t));
         if (allowedTab) {
@@ -151,6 +168,8 @@ export const AdminPanel: React.FC = () => {
   const [newStaffRole, setNewStaffRole] = useState<'admin' | 'super_admin'>('admin');
   const [staffSuccess, setStaffSuccess] = useState<string | null>(null);
   const [staffError, setStaffError] = useState<string | null>(null);
+  const [editingPasswords, setEditingPasswords] = useState<Record<string, string>>({});
+  const [passwordSavedEmail, setPasswordSavedEmail] = useState<string | null>(null);
   const [newProdHighlight, setNewProdHighlight] = useState('');
   const [newProdTags, setNewProdTags] = useState('');
 
@@ -175,6 +194,7 @@ export const AdminPanel: React.FC = () => {
   const [newPromoCode, setNewPromoCode] = useState('');
   const [newPromoPercent, setNewPromoPercent] = useState(10);
   const [newPromoDesc, setNewPromoDesc] = useState('');
+  const [openFeatures, setOpenFeatures] = useState<Record<string, boolean>>({});
 
   // --- SECURITY LOGIN CONTROLLER ---
   const handleAdminAuth = (e: React.FormEvent) => {
@@ -407,6 +427,7 @@ export const AdminPanel: React.FC = () => {
           { id: 'promos', label: 'Discount Campaigns', icon: Tag },
           { id: 'emails', label: `System Alerts (${simulatedEmails.filter(e => !e.read).length})`, icon: Bell },
           { id: 'settings', label: 'Store Constants', icon: Settings },
+          { id: 'api', label: 'API & Integrations', icon: Key },
           { id: 'permissions', label: 'Staff & Permissions', icon: Lock },
         ].filter((tab) => {
           if (currentAdminUser?.role === 'super_admin') return true;
@@ -420,6 +441,7 @@ export const AdminPanel: React.FC = () => {
             promos: 'viewPromos',
             emails: 'viewEmails',
             settings: 'viewSettings',
+            api: 'viewSettings',
           };
           
           const permKey = tabMap[tab.id];
@@ -1746,130 +1768,523 @@ export const AdminPanel: React.FC = () => {
 
             {/* COLUMN 1: Operational Base Settings (Left) */}
             <div className="lg:col-span-4 space-y-6">
-              
               {/* BRANDING, INITIALS & LOGO CARD */}
-              <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
-                <h3 className="font-display text-xs font-bold font-mono uppercase tracking-widest text-slate-400 pb-3 border-b border-slate-100 flex items-center">
-                  <Sparkles className="h-4.5 w-4.5 mr-1.5 text-indigo-600" /> Identity & Branding
-                </h3>
-
-                <div className="space-y-4">
-                  {/* Storefront Name */}
-                  <div>
-                    <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 mb-1">
-                      Storefront Name (Navbar & Foots)
-                    </label>
-                    <input
-                      type="text"
-                      className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2.5 px-3 text-xs font-semibold outline-none focus:bg-white focus:border-indigo-500 text-slate-800"
-                      value={settings.storeName}
-                      onChange={(e) => updateSettings({ storeName: e.target.value.toUpperCase() })}
-                      placeholder="e.g. AETHER OBJECTS"
-                    />
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden transition-all duration-200">
+                {/* Accordion Head Toggle */}
+                <div
+                  onClick={() => setOpenSettingsSections(prev => ({ ...prev, branding: !prev.branding }))}
+                  className="flex items-center justify-between p-4.5 bg-slate-50/70 hover:bg-indigo-50/30 transition-colors cursor-pointer select-none border-b border-slate-100"
+                >
+                  <h3 className="font-display text-xs font-bold font-mono uppercase tracking-widest text-slate-800 flex items-center">
+                    <Sparkles className="h-4 w-4 mr-1.5 text-indigo-600 animate-pulse" /> Identity & Branding
+                  </h3>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] font-mono text-slate-400">
+                      {openSettingsSections.branding ? 'HIDE ▲' : 'OPEN ▼'}
+                    </span>
                   </div>
+                </div>
 
-                  {/* Admin Console Name */}
-                  <div>
-                    <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 mb-1">
-                      Admin Panel Name
-                    </label>
-                    <input
-                      type="text"
-                      className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2.5 px-3 text-xs font-semibold outline-none focus:bg-white focus:border-indigo-500 text-slate-800"
-                      value={settings.adminPanelName || ''}
-                      onChange={(e) => updateSettings({ adminPanelName: e.target.value })}
-                      placeholder="e.g. Administrative Control Console"
-                    />
-                  </div>
-
-                  {/* Brand Logo Preference Selector */}
-                  <div className="space-y-2 pt-2 border-t border-slate-100">
-                    <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400">
-                      Brand Logo Type
-                    </label>
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        type="button"
-                        onClick={() => updateSettings({ logoType: 'text' })}
-                        className={`py-1.5 px-3 rounded-lg border text-xs font-bold transition-all ${
-                          (settings.logoType || 'text') === 'text'
-                            ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm'
-                            : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
-                        }`}
-                      >
-                        Text Symbol
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => updateSettings({ logoType: 'image' })}
-                        className={`py-1.5 px-3 rounded-lg border text-xs font-bold transition-all ${
-                          settings.logoType === 'image'
-                            ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm'
-                            : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
-                        }`}
-                      >
-                        Image Upload / URL
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Context Sensitive Forms for Logo Type chosen */}
-                  {settings.logoType === 'image' ? (
-                    <div className="space-y-2 animate-fade-in">
-                      <label className="block text-[9px] font-mono font-semibold uppercase text-slate-400">
-                        Brand Logo Image URL
+                {openSettingsSections.branding && (
+                  <div className="p-5 space-y-4 border-t border-slate-50 animate-fade-in bg-white">
+                    {/* Storefront Name */}
+                    <div>
+                      <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 mb-1">
+                        Storefront Name (Navbar & Foots)
                       </label>
-                      <div className="flex items-center space-x-3">
-                        <div className="h-10 w-10 rounded-lg border border-slate-200 bg-slate-50 overflow-hidden flex-shrink-0 flex items-center justify-center p-0.5">
-                          <img
-                            src={settings.logoImage || 'https://images.unsplash.com/photo-1593642702821-c8da63116c2c?w=100&q=80'}
-                            alt="Logo brand preview"
-                            className="h-full w-full object-cover rounded"
-                            referrerPolicy="no-referrer"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1593642702821-c8da63116c2c?w=100&q=80';
-                            }}
+                      <input
+                        type="text"
+                        className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2.5 px-3 text-xs font-semibold outline-none focus:bg-white focus:border-indigo-500 text-slate-800"
+                        value={settings.storeName}
+                        onChange={(e) => updateSettings({ storeName: e.target.value.toUpperCase() })}
+                        placeholder="e.g. AETHER OBJECTS"
+                      />
+                    </div>
+
+                    {/* Admin Console Name */}
+                    <div>
+                      <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 mb-1">
+                        Admin Panel Name
+                      </label>
+                      <input
+                        type="text"
+                        className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2.5 px-3 text-xs font-semibold outline-none focus:bg-white focus:border-indigo-500 text-slate-800"
+                        value={settings.adminPanelName || ''}
+                        onChange={(e) => updateSettings({ adminPanelName: e.target.value })}
+                        placeholder="e.g. Administrative Control Console"
+                      />
+                    </div>
+
+                    {/* Brand Logo Preference Selector */}
+                    <div className="space-y-2 pt-2 border-t border-slate-100">
+                      <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400">
+                        Brand Logo Type
+                      </label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => updateSettings({ logoType: 'text' })}
+                          className={`py-1.5 px-3 rounded-lg border text-xs font-bold transition-all ${
+                            (settings.logoType || 'text') === 'text'
+                              ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm'
+                              : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                          }`}
+                        >
+                          Text Symbol
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => updateSettings({ logoType: 'image' })}
+                          className={`py-1.5 px-3 rounded-lg border text-xs font-bold transition-all ${
+                            settings.logoType === 'image'
+                              ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm'
+                              : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                          }`}
+                        >
+                          Image Upload / URL
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Context Sensitive Forms for Logo Type chosen */}
+                    {settings.logoType === 'image' ? (
+                      <div className="space-y-2 animate-fade-in">
+                        <label className="block text-[9px] font-mono font-semibold uppercase text-slate-400">
+                          Brand Logo Image URL
+                        </label>
+                        <div className="flex items-center space-x-3">
+                          <div className="h-10 w-10 rounded-lg border border-slate-200 bg-slate-50 overflow-hidden flex-shrink-0 flex items-center justify-center p-0.5">
+                            <img
+                              src={settings.logoImage || 'https://images.unsplash.com/photo-1593642702821-c8da63116c2c?w=100&q=80'}
+                              alt="Logo brand preview"
+                              className="h-full w-full object-cover rounded"
+                              referrerPolicy="no-referrer"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1593642702821-c8da63116c2c?w=100&q=80';
+                              }}
+                            />
+                          </div>
+                          <input
+                            type="text"
+                            className="flex-1 rounded-lg border border-slate-200 bg-slate-50 py-2 px-3 text-xs outline-none focus:bg-white focus:border-indigo-500 font-mono text-slate-800"
+                            placeholder="Paste image logo URL..."
+                            value={settings.logoImage || ''}
+                            onChange={(e) => updateSettings({ logoImage: e.target.value })}
                           />
                         </div>
-                        <input
-                          type="text"
-                          className="flex-1 rounded-lg border border-slate-200 bg-slate-50 py-2 px-3 text-xs outline-none focus:bg-white focus:border-indigo-500 font-mono text-slate-800"
-                          placeholder="Paste image logo URL..."
-                          value={settings.logoImage || ''}
-                          onChange={(e) => updateSettings({ logoImage: e.target.value })}
-                        />
                       </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-2 animate-fade-in">
-                      <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 mb-1">
-                        Logo Text Symbol / Initials (Max 3 chars)
-                      </label>
-                      <div className="flex items-center space-x-3">
-                        <div className="h-10 w-10 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-display text-lg font-bold shadow-md shadow-indigo-150 flex-shrink-0">
-                          {settings.logoText || 'Æ'}
+                    ) : (
+                      <div className="space-y-2 animate-fade-in">
+                        <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 mb-1">
+                          Logo Text Symbol / Initials (Max 3 chars)
+                        </label>
+                        <div className="flex items-center space-x-3">
+                          <div className="h-10 w-10 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-display text-lg font-bold shadow-md shadow-indigo-150 flex-shrink-0">
+                            {settings.logoText || 'Æ'}
+                          </div>
+                          <input
+                            type="text"
+                            maxLength={3}
+                            className="flex-1 rounded-lg border border-slate-200 bg-slate-50 py-2 px-3 text-xs outline-none focus:bg-white focus:border-indigo-500 text-slate-800 font-bold"
+                            placeholder="e.g. Æ, DT, MK"
+                            value={settings.logoText || ''}
+                            onChange={(e) => updateSettings({ logoText: e.target.value })}
+                          />
                         </div>
-                        <input
-                          type="text"
-                          maxLength={3}
-                          className="flex-1 rounded-lg border border-slate-200 bg-slate-50 py-2 px-3 text-xs outline-none focus:bg-white focus:border-indigo-500 text-slate-800 font-bold"
-                          placeholder="e.g. Æ, DT, MK"
-                          value={settings.logoText || ''}
-                          onChange={(e) => updateSettings({ logoText: e.target.value })}
-                        />
                       </div>
-                    </div>
-                  )}
-                </div>
+                    )}
+                  </div>
+                )}
               </div>
 
-              {/* SEO, FAVICON, & SEARCH INDEX CONFIGURATION */}
-              <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
-                <h3 className="font-display text-xs font-bold font-mono uppercase tracking-widest text-slate-400 pb-3 border-b border-slate-100 flex items-center">
-                  <Database className="h-4.5 w-4.5 mr-1.5 text-indigo-600" /> SEO & Favicon Settings
-                </h3>
+              {/* CUSTOM FOOTER CONFIGURATIONS */}
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden transition-all duration-200">
+                {/* Accordion Head Toggle */}
+                <div
+                  onClick={() => setOpenSettingsSections(prev => ({ ...prev, footer: !prev.footer }))}
+                  className="flex items-center justify-between p-4.5 bg-slate-50/70 hover:bg-indigo-50/30 transition-colors cursor-pointer select-none border-b border-slate-100"
+                >
+                  <h3 className="font-display text-xs font-bold font-mono uppercase tracking-widest text-slate-800 flex items-center">
+                    <Sliders className="h-4 w-4 mr-1.5 text-indigo-600 animate-pulse" /> Custom Footer Settings
+                  </h3>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] font-mono text-slate-400">
+                      {openSettingsSections.footer ? 'HIDE ▲' : 'OPEN ▼'}
+                    </span>
+                  </div>
+                </div>
 
-                <div className="space-y-4">
+                {openSettingsSections.footer && (
+                  <div className="p-5 space-y-4 border-t border-slate-50 animate-fade-in bg-white">
+                  {/* Custom Footer Intro */}
+                  <div>
+                    <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 mb-1">
+                      Footer Intro Paragraph
+                    </label>
+                    <textarea
+                      rows={3}
+                      className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 px-3 text-xs outline-none focus:bg-white focus:border-indigo-500 text-slate-800 leading-normal"
+                      value={settings.customFooterIntro || ''}
+                      onChange={(e) => updateSettings({ customFooterIntro: e.target.value })}
+                      placeholder="e.g. Curating high-grade functional instruments, workspace structures, and premium modern accessories constructed with genuine materials designed to endure."
+                    />
+                  </div>
+
+                  {/* Custom Footer Support Email & Portal Status */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 mb-1">
+                        Footer Support Contact Email
+                      </label>
+                      <input
+                        type="email"
+                        className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2.5 px-3 text-xs outline-none focus:bg-white focus:border-indigo-500 text-slate-800 font-mono"
+                        value={settings.customFooterEmail || ''}
+                        onChange={(e) => updateSettings({ customFooterEmail: e.target.value })}
+                        placeholder="e.g. support@yourdomain.com"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 mb-1">
+                        Platform status indicator text
+                      </label>
+                      <input
+                        type="text"
+                        className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2.5 px-3 text-xs outline-none focus:bg-white focus:border-indigo-500 text-slate-800"
+                        value={settings.footerStatusText || ''}
+                        onChange={(e) => updateSettings({ footerStatusText: e.target.value })}
+                        placeholder="e.g. PLATFORM STATUS: ● SECURE PORTAL"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Ribbon Features Segment - Dynamic List Manager */}
+                  <div className="border-t border-slate-100 pt-4 space-y-4">
+                    <div className="flex justify-between items-center pb-1">
+                      <div>
+                        <h4 className="text-[11px] font-bold font-mono uppercase tracking-wider text-slate-500">
+                          Ribbon Features list items
+                        </h4>
+                        <p className="text-[10px] text-slate-400 font-sans leading-none mt-1">
+                          Configure highlight assets rendered as cards in the top footer ribbon.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const currentList = settings.footerFeatures || [
+                            { id: '1', title: settings.footerFeature1Title || 'Express Shipping', desc: settings.footerFeature1Desc || 'Free delivery on orders above $150.00', icon: 'truck' },
+                            { id: '2', title: settings.footerFeature2Title || '30-Day Escrow Returns', desc: settings.footerFeature2Desc || 'Hassle-free shipping envelope included', icon: 'rotate-ccw' },
+                            { id: '3', title: settings.footerFeature3Title || 'Encrypted Security', desc: settings.footerFeature3Desc || '256-bit bank standard SSL certificate protection', icon: 'shield' },
+                            { id: '4', title: settings.footerFeature4Title || 'Full Customer Care', desc: settings.footerFeature4Desc || 'Available via live correspondence portals', icon: 'help-circle' }
+                          ];
+                          const newFeature = {
+                            id: Date.now().toString(),
+                            title: 'Premium Benefit',
+                            desc: 'Genuine detail or service guarantee statement.',
+                            icon: 'sparkles'
+                          };
+                          updateSettings({ footerFeatures: [...currentList, newFeature] });
+                        }}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-mono text-[10px] uppercase font-bold tracking-wider transition-all cursor-pointer border border-indigo-100"
+                      >
+                        <Plus className="h-3 w-3" /> Add Feature Item
+                      </button>
+                    </div>
+
+                    <div className="space-y-4">
+                      {(() => {
+                        const currentList = settings.footerFeatures || [
+                          { id: '1', title: settings.footerFeature1Title || 'Express Shipping', desc: settings.footerFeature1Desc || 'Free delivery on orders above $150.00', icon: 'truck' },
+                          { id: '2', title: settings.footerFeature2Title || '30-Day Escrow Returns', desc: settings.footerFeature2Desc || 'Hassle-free shipping envelope included', icon: 'rotate-ccw' },
+                          { id: '3', title: settings.footerFeature3Title || 'Encrypted Security', desc: settings.footerFeature3Desc || '256-bit bank standard SSL certificate protection', icon: 'shield' },
+                          { id: '4', title: settings.footerFeature4Title || 'Full Customer Care', desc: settings.footerFeature4Desc || 'Available via live correspondence portals', icon: 'help-circle' }
+                        ];
+
+                        if (currentList.length === 0) {
+                          return (
+                            <div className="text-center py-8 px-4 border border-dashed border-slate-200 rounded-xl text-xs text-slate-400 font-mono bg-slate-50/50">
+                              No ribbon features configured. Click 'Add Feature Item' to begin.
+                            </div>
+                          );
+                        }
+
+                        const availableIcons = [
+                          { key: 'truck', label: 'Truck/Shipping' },
+                          { key: 'rotate-ccw', label: 'Returns' },
+                          { key: 'shield', label: 'Shield Security' },
+                          { key: 'help-circle', label: 'Help/FAQ' },
+                          { key: 'heart', label: 'Heart Favorite' },
+                          { key: 'award', label: 'Award Banner' },
+                          { key: 'clock', label: 'Clock/Timing' },
+                          { key: 'sparkles', label: 'Sparkles premium' },
+                          { key: 'check-circle', label: 'Check mark' },
+                          { key: 'tag', label: 'Tag offer' },
+                          { key: 'undo', label: 'Undo/Exchange' },
+                          { key: 'star', label: 'Star rate' },
+                          { key: 'gift', label: 'Gift present' },
+                          { key: 'message-square', label: 'Support live chat' }
+                        ];
+
+                        return currentList.map((item, index) => {
+                          const itemKey = item.id || index.toString();
+                          const isOpen = !!openFeatures[itemKey];
+
+                          return (
+                            <div key={itemKey} className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm transition-all duration-200">
+                              {/* Accordion Head Toggle */}
+                              <div
+                                onClick={() => {
+                                  setOpenFeatures(prev => ({ ...prev, [itemKey]: !prev[itemKey] }));
+                                }}
+                                className="flex items-center justify-between p-3.5 bg-slate-50/70 hover:bg-indigo-50/30 transition-colors cursor-pointer select-none border-b border-slate-100"
+                              >
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                  <span className="text-[9px] font-mono font-bold uppercase tracking-wider text-indigo-605 bg-indigo-50 px-2 py-0.5 rounded shrink-0">
+                                    Item #{index + 1}
+                                  </span>
+                                  <span className="text-xs font-semibold text-slate-800 truncate">
+                                    {item.title || '(Untitled Feature)'}
+                                  </span>
+                                  <span className="text-[10px] font-mono text-slate-400 truncate">
+                                    ({item.icon || 'no-icon'})
+                                  </span>
+                                </div>
+
+                                <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
+                                  {/* Action Buttons: Delete & Move */}
+                                  <div className="flex items-center gap-1">
+                                    {index > 0 && (
+                                      <button
+                                        type="button"
+                                        title="Move Up"
+                                        onClick={() => {
+                                          const nextList = [...currentList];
+                                          const temp = nextList[index];
+                                          nextList[index] = nextList[index - 1];
+                                          nextList[index - 1] = temp;
+                                          updateSettings({ footerFeatures: nextList });
+                                        }}
+                                        className="p-1 rounded bg-white hover:bg-slate-100 text-slate-500 border border-slate-200 hover:text-slate-800 transition-colors cursor-pointer"
+                                      >
+                                        <ArrowUp className="w-3.5 h-3.5" />
+                                      </button>
+                                    )}
+                                    {index < currentList.length - 1 && (
+                                      <button
+                                        type="button"
+                                        title="Move Down"
+                                        onClick={() => {
+                                          const nextList = [...currentList];
+                                          const temp = nextList[index];
+                                          nextList[index] = nextList[index + 1];
+                                          nextList[index + 1] = temp;
+                                          updateSettings({ footerFeatures: nextList });
+                                        }}
+                                        className="p-1 rounded bg-white hover:bg-slate-100 text-slate-500 border border-slate-200 hover:text-slate-800 transition-colors cursor-pointer"
+                                      >
+                                        <ArrowDown className="w-3.5 h-3.5" />
+                                      </button>
+                                    )}
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const updated = currentList.filter((_, i) => i !== index);
+                                        updateSettings({ footerFeatures: updated });
+                                      }}
+                                      className="p-1 rounded bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-100 hover:border-rose-200 transition-colors cursor-pointer ml-1"
+                                      title="Delete Feature Item"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+
+                                  {/* Dropdown chevron toggle */}
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setOpenFeatures(prev => ({ ...prev, [itemKey]: !prev[itemKey] }));
+                                    }}
+                                    className="p-1 rounded bg-white hover:bg-slate-100 text-slate-500 border border-slate-200 hover:text-slate-800 transition-colors cursor-pointer ml-1"
+                                    title="Toggle Details"
+                                  >
+                                    <svg
+                                      xmlns="http://www.w3.org/2000/svg"
+                                      viewBox="0 0 20 20"
+                                      fill="currentColor"
+                                      className={`w-3.5 h-3.5 transform transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
+                                    >
+                                      <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
+                                    </svg>
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* Accordion Content Details */}
+                              {isOpen && (
+                                <div className="p-4 bg-white border-t border-slate-100 space-y-3.5">
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {/* Title Input */}
+                                    <div>
+                                      <label className="block text-[9px] font-mono font-bold uppercase tracking-wider text-slate-400 mb-1">
+                                        Feature Title
+                                      </label>
+                                      <input
+                                        type="text"
+                                        className="w-full rounded-lg border border-slate-200 bg-white py-1.5 px-3 text-xs outline-none focus:border-indigo-500 text-slate-800 font-semibold"
+                                        value={item.title}
+                                        onChange={(e) => {
+                                          const nextList = [...currentList];
+                                          nextList[index] = { ...nextList[index], title: e.target.value };
+                                          updateSettings({ footerFeatures: nextList });
+                                        }}
+                                        placeholder="e.g. Express Shipping"
+                                      />
+                                    </div>
+
+                                    {/* Icon Select */}
+                                    <div>
+                                      <label className="block text-[9px] font-mono font-bold uppercase tracking-wider text-slate-400 mb-1">
+                                        Icon Accent
+                                      </label>
+                                      <select
+                                        className="w-full rounded-lg border border-slate-200 bg-white py-1.5 px-3 text-xs outline-none focus:border-indigo-500 text-slate-700 font-mono"
+                                        value={item.icon}
+                                        onChange={(e) => {
+                                          const nextList = [...currentList];
+                                          nextList[index] = { ...nextList[index], icon: e.target.value };
+                                          updateSettings({ footerFeatures: nextList });
+                                        }}
+                                      >
+                                        {availableIcons.map(opt => (
+                                          <option key={opt.key} value={opt.key}>
+                                            {opt.label} ({opt.key})
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </div>
+                                  </div>
+
+                                  {/* Description Input */}
+                                  <div>
+                                    <label className="block text-[9px] font-mono font-bold uppercase tracking-wider text-slate-400 mb-1">
+                                      Feature Description
+                                    </label>
+                                    <input
+                                      type="text"
+                                      className="w-full rounded-lg border border-slate-200 bg-white py-1.5 px-3 text-xs outline-none focus:border-indigo-500 text-slate-605"
+                                      value={item.desc}
+                                      onChange={(e) => {
+                                        const nextList = [...currentList];
+                                        nextList[index] = { ...nextList[index], desc: e.target.value };
+                                        updateSettings({ footerFeatures: nextList });
+                                      }}
+                                      placeholder="e.g. Free delivery status or speed of returns..."
+                                    />
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        });
+                      })()}
+                    </div>
+                  </div>
+
+                  {/* Column Directories Titles */}
+                  <div className="border-t border-slate-100 pt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-450 mb-1">
+                        Directory Column 1 Heading Title
+                      </label>
+                      <input
+                        type="text"
+                        className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2.5 px-3 text-xs outline-none focus:bg-white focus:border-indigo-500 text-slate-800"
+                        value={settings.footerCol1Title || ''}
+                        onChange={(e) => updateSettings({ footerCol1Title: e.target.value })}
+                        placeholder="Catalogue"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-450 mb-1">
+                        Directory Column 2 Heading Title
+                      </label>
+                      <input
+                        type="text"
+                        className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2.5 px-3 text-xs outline-none focus:bg-white focus:border-indigo-500 text-slate-800"
+                        value={settings.footerCol2Title || ''}
+                        onChange={(e) => updateSettings({ footerCol2Title: e.target.value })}
+                        placeholder="Administrative"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Custom Support Banner Heading & Texts */}
+                  <div className="border-t border-slate-100 pt-4 space-y-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-450 mb-1">
+                          Support Head Title Label
+                        </label>
+                        <input
+                          type="text"
+                          className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2.5 px-3 text-xs outline-none focus:bg-white focus:border-indigo-500 text-slate-800"
+                          value={settings.footerSupportTitle || ''}
+                          onChange={(e) => updateSettings({ footerSupportTitle: e.target.value })}
+                          placeholder="Global Customer Support"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-450 mb-1">
+                          Support Inquiry Description text
+                        </label>
+                        <input
+                          type="text"
+                          className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2.5 px-3 text-xs outline-none focus:bg-white focus:border-indigo-500 text-slate-800"
+                          value={settings.footerSupportDesc || ''}
+                          onChange={(e) => updateSettings({ footerSupportDesc: e.target.value })}
+                          placeholder="Have inquiries about custom corporate pricing or genuine material specifications?"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Custom Footer Legal/Copyright Text */}
+                  <div className="border-t border-slate-100 pt-4">
+                    <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 mb-1">
+                      Footer Copyright Text Extension
+                    </label>
+                    <textarea
+                      rows={2}
+                      className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 px-3 text-xs outline-none focus:bg-white focus:border-indigo-500 text-slate-800 leading-normal"
+                      value={settings.customFooterText || ''}
+                      onChange={(e) => updateSettings({ customFooterText: e.target.value })}
+                      placeholder="e.g. Handcrafted in the digital workspaces. All rights reserved."
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+              {/* SEO, FAVICON, & SEARCH INDEX CONFIGURATION */}
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden transition-all duration-200">
+                {/* Accordion Head Toggle */}
+                <div
+                  onClick={() => setOpenSettingsSections(prev => ({ ...prev, seo: !prev.seo }))}
+                  className="flex items-center justify-between p-4.5 bg-slate-50/70 hover:bg-indigo-50/30 transition-colors cursor-pointer select-none border-b border-slate-100"
+                >
+                  <h3 className="font-display text-xs font-bold font-mono uppercase tracking-widest text-slate-800 flex items-center">
+                    <Database className="h-4 w-4 mr-1.5 text-indigo-600 animate-pulse" /> SEO & Favicon Settings
+                  </h3>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] font-mono text-slate-400">
+                      {openSettingsSections.seo ? 'HIDE ▲' : 'OPEN ▼'}
+                    </span>
+                  </div>
+                </div>
+
+                {openSettingsSections.seo && (
+                  <div className="p-5 space-y-4 border-t border-slate-50 animate-fade-in bg-white">
                   {/* Favicon URL with live preview */}
                   <div className="space-y-2">
                     <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400">
@@ -1949,15 +2364,28 @@ export const AdminPanel: React.FC = () => {
                     </ul>
                   </div>
                 </div>
-              </div>
+              )}
+            </div>
 
               {/* OPERATIONAL FEES & TAXES CONFIGURATION */}
-              <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-                <h3 className="font-display text-xs font-bold font-mono uppercase tracking-widest text-slate-400 pb-3 border-b border-slate-100 mb-5 flex items-center">
-                  <Settings className="h-4.5 w-4.5 mr-1.5 text-indigo-600" /> Operational Constants
-                </h3>
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden transition-all duration-200">
+                {/* Accordion Head Toggle */}
+                <div
+                  onClick={() => setOpenSettingsSections(prev => ({ ...prev, operational: !prev.operational }))}
+                  className="flex items-center justify-between p-4.5 bg-slate-50/70 hover:bg-indigo-50/30 transition-colors cursor-pointer select-none border-b border-slate-100"
+                >
+                  <h3 className="font-display text-xs font-bold font-mono uppercase tracking-widest text-slate-800 flex items-center">
+                    <Settings className="h-4 w-4 mr-1.5 text-indigo-600 animate-pulse" /> Operational Constants
+                  </h3>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] font-mono text-slate-400">
+                      {openSettingsSections.operational ? 'HIDE ▲' : 'OPEN ▼'}
+                    </span>
+                  </div>
+                </div>
 
-                <div className="space-y-4">
+                {openSettingsSections.operational && (
+                  <div className="p-5 space-y-4 border-t border-slate-50 animate-fade-in bg-white">
                   <div>
                     <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 mb-1">
                       Active Currency Spec
@@ -2012,11 +2440,28 @@ export const AdminPanel: React.FC = () => {
                     </button>
                   </div>
                 </div>
-              </div>
+              )}
+            </div>
 
               {/* Banner Live Mockup (Interactive preview box) */}
-              <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
-                <span className="block text-[10px] font-mono font-bold tracking-widest text-slate-400 uppercase">Live Storefront Previews</span>
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden transition-all duration-200">
+                {/* Accordion Head Toggle */}
+                <div
+                  onClick={() => setOpenSettingsSections(prev => ({ ...prev, previews: !prev.previews }))}
+                  className="flex items-center justify-between p-4 bg-slate-50/70 hover:bg-indigo-50/30 transition-colors cursor-pointer select-none border-b border-slate-100"
+                >
+                  <span className="block text-[10px] font-mono font-bold tracking-widest text-slate-800 uppercase flex items-center">
+                    <Sparkles className="h-4 w-4 mr-1.5 text-indigo-600 animate-pulse" /> Live Storefront Previews
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] font-mono text-slate-400">
+                      {openSettingsSections.previews ? 'HIDE ▲' : 'OPEN ▼'}
+                    </span>
+                  </div>
+                </div>
+
+                {openSettingsSections.previews && (
+                  <div className="p-5 space-y-4 border-t border-slate-50 animate-fade-in bg-white">
                 
                 {/* Visual miniature mockup for static banner */}
                 {settings.showHeroBanner !== false ? (
@@ -2133,28 +2578,32 @@ export const AdminPanel: React.FC = () => {
                   );
                 })()}
 
-                <div className="text-[10px] text-slate-450 leading-relaxed text-center">
-                  Any toggles made to templates, images, or headings are dynamically updated immediately to the customer storefront viewport.
-                </div>
+                    <div className="text-[10px] text-slate-450 leading-relaxed text-center">
+                      Any toggles made to templates, images, or headings are dynamically updated immediately to the customer storefront viewport.
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
             {/* COLUMN 2: Storefront Banner & Theme Customizer (Right) */}
             <div className="lg:col-span-8 space-y-6">
-              <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-                
-                {/* Section Header */}
-                <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-6">
-                  <div>
-                    <h3 className="font-display text-sm font-bold text-slate-900 flex items-center">
-                      <Sparkles className="h-4.5 w-4.5 mr-1.5 text-indigo-600" /> Storefront Hero Customization Panel
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden transition-all duration-200">
+                {/* Accordion Head Toggle */}
+                <div
+                  onClick={() => setOpenSettingsSections(prev => ({ ...prev, hero: !prev.hero }))}
+                  className="flex items-center justify-between p-4.5 bg-slate-50/70 hover:bg-indigo-50/30 transition-colors cursor-pointer select-none border-b border-slate-100"
+                >
+                  <div className="min-w-0 pr-2">
+                    <h3 className="font-display text-sm font-bold text-slate-800 flex items-center">
+                      <Sparkles className="h-4.5 w-4.5 mr-1.5 text-indigo-600 animate-pulse shrink-0" /> Storefront Hero Customization Panel
                     </h3>
-                    <p className="text-[11px] text-slate-400 mt-1">
-                      Configure color themes, template alignments, and visual background images for your primary landing storefront banner.
+                    <p className="text-[11px] text-slate-400 mt-0.5 truncate">
+                      Configure color themes, template alignments, and visual background images.
                     </p>
                   </div>
-                  <div className="flex items-center space-x-2 flex-shrink-0">
-                    <span className="text-[9px] uppercase font-mono font-bold text-slate-400">Status:</span>
+                  <div className="flex items-center gap-3 shrink-0" onClick={(e) => e.stopPropagation()}>
+                    <span className="text-[10px] uppercase font-mono font-bold text-slate-400">Banner:</span>
                     <button
                       type="button"
                       onClick={() => updateSettings({ showHeroBanner: settings.showHeroBanner === false ? true : false })}
@@ -2168,13 +2617,18 @@ export const AdminPanel: React.FC = () => {
                         }`}
                       />
                     </button>
-                    <span className={`text-[9px] font-mono font-bold uppercase ${settings.showHeroBanner !== false ? 'text-indigo-600' : 'text-slate-400'}`}>
-                      {settings.showHeroBanner !== false ? 'Enabled' : 'Disabled'}
-                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setOpenSettingsSections(prev => ({ ...prev, hero: !prev.hero }))}
+                      className="text-[10px] font-mono text-indigo-600 font-bold hover:text-indigo-800 pl-1 border-l border-slate-200 cursor-pointer"
+                    >
+                      {openSettingsSections.hero ? 'HIDE ▲' : 'OPEN ▼'}
+                    </button>
                   </div>
                 </div>
 
-                <div className="space-y-6">
+                {openSettingsSections.hero && (
+                  <div className="p-6 space-y-6 border-t border-slate-50 animate-fade-in bg-white">
                   {settings.showHeroBanner !== false ? (
                     <>
                       {/* Part 1: Select Visual Style Template */}
@@ -2531,19 +2985,33 @@ export const AdminPanel: React.FC = () => {
                   </div>
 
                 </div>
-
+              )}
               </div>
 
               {/* WEBSITE & PRODUCT GRAPHIC THEME ENGINE */}
-              <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-6">
-                <div className="pb-4 border-b border-slate-100">
-                  <h3 className="font-display text-sm font-bold text-slate-900 flex items-center">
-                    <Palette className="h-4.5 w-4.5 mr-1.5 text-indigo-600" /> Website & Product Theme Engine
-                  </h3>
-                  <p className="text-[11px] text-slate-400 mt-1">
-                    Tune the overall color palette vibe, custom layout templates for product grid cards, and layout aesthetics.
-                  </p>
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden transition-all duration-200">
+                {/* Accordion Head Toggle */}
+                <div
+                  onClick={() => setOpenSettingsSections(prev => ({ ...prev, theme: !prev.theme }))}
+                  className="flex items-center justify-between p-4.5 bg-slate-50/70 hover:bg-indigo-50/30 transition-colors cursor-pointer select-none border-b border-slate-100"
+                >
+                  <div className="min-w-0 pr-2">
+                    <h3 className="font-display text-sm font-bold text-slate-800 flex items-center">
+                      <Palette className="h-4.5 w-4.5 mr-1.5 text-indigo-600 animate-pulse shrink-0" /> Website & Product Theme Engine
+                    </h3>
+                    <p className="text-[11px] text-slate-400 mt-0.5 truncate">
+                      Tune the overall color palette vibe, custom templates, and layout aesthetics.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1.5 ml-4 shrink-0">
+                    <span className="text-[10px] font-mono text-slate-400">
+                      {openSettingsSections.theme ? 'HIDE ▲' : 'OPEN ▼'}
+                    </span>
+                  </div>
                 </div>
+
+                {openSettingsSections.theme && (
+                  <div className="p-6 space-y-6 border-t border-slate-50 animate-fade-in bg-white">
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Topic 1: Website Accent & Backdrop Theme */}
@@ -2625,40 +3093,57 @@ export const AdminPanel: React.FC = () => {
 
                 </div>
               </div>
+            )}
+            </div>
 
               {/* CLOUD DATABASE SYNCHRONIZATION */}
-              <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-6">
-                <div className="pb-4 border-b border-slate-100 flex items-center justify-between">
-                  <div>
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden transition-all duration-200">
+                {/* Accordion Head Toggle */}
+                <div
+                  onClick={() => setOpenSettingsSections(prev => ({ ...prev, database: !prev.database }))}
+                  className="flex items-center justify-between p-4.5 bg-slate-50/70 hover:bg-indigo-50/30 transition-colors cursor-pointer select-none border-b border-slate-100"
+                >
+                  <div className="min-w-0 pr-2">
                     <h3 className="font-display text-sm font-bold text-slate-800 flex items-center">
-                      <Database className="h-4.5 w-4.5 mr-1.5 text-indigo-600" /> Cloud Database Connection & Backup Sync
+                      <Database className="h-4.5 w-4.5 mr-1.5 text-indigo-600 animate-pulse shrink-0" /> Cloud Database Connection & Backup Sync
                     </h3>
-                    <p className="text-[11px] text-slate-400 mt-1">
-                      Manage real-time updates and synchronization with your MongoDB Atlas database cluster.
+                    <p className="text-[11px] text-slate-400 mt-0.5 truncate">
+                      Manage real-time updates and backup synchronization with your cluster.
                     </p>
                   </div>
-                  
-                  {/* Status Indicator Badge */}
-                  <div className={`px-2.5 py-1 rounded-full text-[10px] font-mono font-bold flex items-center space-x-1 ${
-                    dbSyncStatus === 'synced' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
-                    dbSyncStatus === 'loading' ? 'bg-amber-50 text-amber-700 border border-amber-200' :
-                    dbSyncStatus === 'error' ? 'bg-rose-50 text-rose-700 border border-rose-250 animate-pulse' :
-                    'bg-slate-50 text-slate-600 border border-slate-200'
-                  }`}>
-                    <span className={`h-1.5 w-1.5 rounded-full ${
-                      dbSyncStatus === 'synced' ? 'bg-emerald-500' :
-                      dbSyncStatus === 'loading' ? 'bg-amber-500' :
-                      dbSyncStatus === 'error' ? 'bg-rose-500' :
-                      'bg-slate-400'
-                    }`} />
-                    <span className="uppercase tracking-wider font-mono text-[9px]">
-                      {dbSyncStatus === 'synced' ? 'DB Connected' :
-                       dbSyncStatus === 'loading' ? 'Syncing...' :
-                       dbSyncStatus === 'error' ? 'SSL / Connection Error' :
-                       'Offline Storage'}
-                    </span>
+                  <div className="flex items-center gap-3 shrink-0" onClick={(e) => e.stopPropagation()}>
+                    {/* Status Indicator Badge */}
+                    <div className={`px-2 py-0.5 rounded-md text-[9px] font-mono font-bold flex items-center space-x-1 ${
+                      dbSyncStatus === 'synced' ? 'bg-emerald-55 bg-emerald-50 text-emerald-700 border border-emerald-200' :
+                      dbSyncStatus === 'loading' ? 'bg-amber-50 text-amber-700 border border-amber-200' :
+                      dbSyncStatus === 'error' ? 'bg-rose-50 text-rose-700 border border-rose-250 animate-pulse' :
+                      'bg-slate-50 text-slate-600 border border-slate-200'
+                    }`}>
+                      <span className={`h-1.5 w-1.5 rounded-full ${
+                        dbSyncStatus === 'synced' ? 'bg-emerald-500' :
+                        dbSyncStatus === 'loading' ? 'bg-amber-500' :
+                        dbSyncStatus === 'error' ? 'bg-rose-500' :
+                        'bg-slate-400'
+                      }`} />
+                      <span className="uppercase tracking-wider font-mono text-[8px]">
+                        {dbSyncStatus === 'synced' ? 'CONNECTED' :
+                         dbSyncStatus === 'loading' ? 'SYNCING' :
+                         dbSyncStatus === 'error' ? 'ERR_IP_BLOCK' :
+                         'OFFLINE'}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setOpenSettingsSections(prev => ({ ...prev, database: !prev.database }))}
+                      className="text-[10px] font-mono text-indigo-600 font-bold hover:text-indigo-800 pl-1 border-l border-slate-200 cursor-pointer"
+                    >
+                      {openSettingsSections.database ? 'HIDE ▲' : 'OPEN ▼'}
+                    </button>
                   </div>
                 </div>
+
+                {openSettingsSections.database && (
+                  <div className="p-6 space-y-6 border-t border-slate-50 animate-fade-in bg-white">
 
                 <div className="space-y-4">
                   {dbSyncStatus === 'error' && (
@@ -2727,17 +3212,33 @@ export const AdminPanel: React.FC = () => {
                   </div>
                 </div>
               </div>
+            )}
+            </div>
 
               {/* FLOATING ACTION CONTACT WIDGET SETTINGS */}
-              <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-6">
-                <div className="pb-4 border-b border-slate-100">
-                  <h3 className="font-display text-sm font-bold text-slate-800 flex items-center">
-                    <MessageCircle className="h-4.5 w-4.5 mr-1.5 text-indigo-600 animate-pulse" /> Store Contact & Custom Floating Button Setup
-                  </h3>
-                  <p className="text-[11px] text-slate-400 mt-1">
-                    Configure a modern floating support widget at the bottom of your shop to route customers instantly to WhatsApp or Facebook Messenger.
-                  </p>
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden transition-all duration-200">
+                {/* Accordion Head Toggle */}
+                <div
+                  onClick={() => setOpenSettingsSections(prev => ({ ...prev, contact: !prev.contact }))}
+                  className="flex items-center justify-between p-4.5 bg-slate-50/70 hover:bg-indigo-50/30 transition-colors cursor-pointer select-none border-b border-slate-100"
+                >
+                  <div className="min-w-0 pr-2">
+                    <h3 className="font-display text-sm font-bold text-slate-800 flex items-center">
+                      <MessageCircle className="h-4.5 w-4.5 mr-1.5 text-indigo-600 animate-pulse shrink-0" /> Store Contact & Custom Floating Button Setup
+                    </h3>
+                    <p className="text-[11px] text-slate-400 mt-0.5 truncate">
+                      Configure a modern floating support widget (WhatsApp / Facebook Messenger).
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1.5 ml-4 shrink-0">
+                    <span className="text-[10px] font-mono text-slate-400">
+                      {openSettingsSections.contact ? 'HIDE ▲' : 'OPEN ▼'}
+                    </span>
+                  </div>
                 </div>
+
+                {openSettingsSections.contact && (
+                  <div className="p-6 space-y-6 border-t border-slate-50 animate-fade-in bg-white">
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs text-left">
                   {/* Left Column: Toggles and Chooser */}
@@ -2913,6 +3414,8 @@ export const AdminPanel: React.FC = () => {
                   </div>
                 </div>
               </div>
+            )}
+            </div>
 
 
             </div>
@@ -3186,6 +3689,179 @@ export const AdminPanel: React.FC = () => {
         </div>
       )}
 
+      {activeTab === 'api' && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 max-w-7xl w-full animate-fade-in text-xs" id="api-tab">
+          
+          {/* COLUMN 1: API Setup Form (Left, width grid: 7 columns) */}
+          <div className="lg:col-span-7 space-y-6 text-left">
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden p-6">
+              <div className="pb-4 border-b border-slate-100 flex items-center justify-between">
+                <div>
+                  <h3 className="font-display text-sm font-bold text-slate-800 flex items-center">
+                    <Key className="h-4.5 w-4.5 mr-1.5 text-indigo-600 animate-pulse" /> API Integration & Credentials Gate
+                  </h3>
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    Inject external tracking services, analytics tags, and web trackers into your storefront.
+                  </p>
+                </div>
+                <span className="text-[8px] uppercase font-mono font-bold bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded border border-indigo-150">
+                  SECURE_LAYER
+                </span>
+              </div>
+
+              <div className="space-y-6 mt-6">
+                {/* Topic 1: Google Analytics ID */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500">
+                      Google Analytics Tracking ID
+                    </label>
+                    <span className={`text-[9px] font-mono font-semibold ${settings.googleAnalyticsId ? 'text-emerald-600' : 'text-slate-400'}`}>
+                      {settings.googleAnalyticsId ? '● Connected' : 'Waiting for ID'}
+                    </span>
+                  </div>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Globe className="h-4 w-4 text-slate-400" />
+                    </div>
+                    <input
+                      type="text"
+                      className="w-full pl-9 rounded-lg border border-slate-200 bg-slate-50 py-2.5 px-3 text-xs font-mono outline-none focus:bg-white focus:border-indigo-500 text-slate-800"
+                      value={settings.googleAnalyticsId || ''}
+                      onChange={(e) => updateSettings({ googleAnalyticsId: e.target.value })}
+                      placeholder="e.g. G-XXXXXX or UA-XXXXXX-X"
+                    />
+                  </div>
+                  <p className="text-[10px] leading-relaxed text-slate-400">
+                    Your global site tag (gtag.js) for Google Analytics. Allows direct tracking of page view events, conversions, and acquisition lists.
+                  </p>
+                </div>
+
+                {/* Topic 2: Meta API / Pixel Key */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500">
+                      Meta Pixel ID / API Tracking Key
+                    </label>
+                    <span className={`text-[9px] font-mono font-semibold ${settings.metaApiKey ? 'text-emerald-600' : 'text-slate-400'}`}>
+                      {settings.metaApiKey ? '● Operational' : 'Offline'}
+                    </span>
+                  </div>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Server className="h-4 w-4 text-slate-400" />
+                    </div>
+                    <input
+                      type="text"
+                      className="w-full pl-9 rounded-lg border border-slate-200 bg-slate-50 py-2.5 px-3 text-xs font-mono outline-none focus:bg-white focus:border-indigo-500 text-slate-800"
+                      value={settings.metaApiKey || ''}
+                      onChange={(e) => updateSettings({ metaApiKey: e.target.value })}
+                      placeholder="e.g. 15-digit Pixel ID or Graph Token (112233445566778)"
+                    />
+                  </div>
+                  <p className="text-[10px] leading-relaxed text-slate-400">
+                    Used to synchronize acquisition data with Facebook Meta Ads Manager, measuring target clicks and customer conversions on checkout.
+                  </p>
+                </div>
+
+                <div className="bg-slate-50 rounded-xl border border-slate-150 p-4 space-y-2 text-[10.5px] text-slate-500">
+                  <span className="font-mono font-bold text-[9px] uppercase text-indigo-700 bg-indigo-50/50 border border-indigo-100 px-2 py-0.5 rounded">
+                    Real-time Synchronization Note
+                  </span>
+                  <p className="leading-relaxed">
+                    Any credentials logged above are saved across your client storage indices and immediately initialized inside the customer viewport. Trackers activate automatically without any service restart.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* COLUMN 2: Documentation & Testing Panel (Right, width grid: 5 columns) */}
+          <div className="lg:col-span-5 space-y-6 text-left">
+            {/* Status Panel */}
+            <div className="bg-slate-900 text-white rounded-2xl p-6 shadow-md border border-slate-800 space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                <h4 className="font-display font-bold text-xs uppercase tracking-wider text-indigo-400">
+                  Active Core Diagnostic
+                </h4>
+                <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
+              </div>
+
+              <div className="space-y-3 font-mono text-[10.5px]">
+                <div className="flex justify-between">
+                  <span className="text-slate-450">GA SCRIPT ENGINE:</span>
+                  <span className={settings.googleAnalyticsId ? 'text-emerald-400 font-bold' : 'text-slate-500'}>
+                    {settings.googleAnalyticsId ? 'INITIALIZED' : 'IDLE'}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-450">META AD GRAPH STATUS:</span>
+                  <span className={settings.metaApiKey ? 'text-emerald-400 font-bold' : 'text-slate-500'}>
+                    {settings.metaApiKey ? 'TRANSMITTING' : 'IDLE'}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-450">TRACKING DOMAIN:</span>
+                  <span className="text-slate-300">aetherobjects.co</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-450">SSL PROTOCOL:</span>
+                  <span className="text-teal-400 font-bold">TLS_1.3_ENCRYPTED</span>
+                </div>
+              </div>
+
+              <div className="pt-3 border-t border-slate-800">
+                <p className="text-[10px] text-slate-400 leading-normal font-sans">
+                  The client browser injects these scripts asynchronously to protect user-facing loading speeds. Analytics do not affect First Contentful Paint metrics.
+                </p>
+              </div>
+            </div>
+
+            {/* Sandbox Testing panel */}
+            <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
+              <h4 className="font-display text-xs font-bold text-slate-800 flex items-center">
+                <ShieldAlert className="h-4 w-4 mr-1.5 text-amber-500" /> Integration Testing sandbox
+              </h4>
+              <p className="text-[10.5px] text-slate-450 leading-relaxed">
+                Send manual mock client data directly to check connected telemetry tags performance:
+              </p>
+
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (typeof window !== 'undefined') {
+                      alert('Google Analytics [gtag] Mock Event Sent: "test_pixel_connection"');
+                    }
+                  }}
+                  disabled={!settings.googleAnalyticsId}
+                  className="w-full bg-indigo-50 hover:bg-indigo-100/70 text-indigo-700 font-bold py-2 px-3 rounded-lg border border-indigo-150 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-center text-[11px]"
+                >
+                  Dispatch GA Page Event Test
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (typeof window !== 'undefined') {
+                      alert('Meta Pixel [fbq] Mock Event Sent: "LeadPurchase"');
+                    }
+                  }}
+                  disabled={!settings.metaApiKey}
+                  className="w-full bg-indigo-50 hover:bg-indigo-100/70 text-indigo-700 font-bold py-2 px-3 rounded-lg border border-indigo-150 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-center text-[11px]"
+                >
+                  Trigger fbq Checkout Lead Test
+                </button>
+              </div>
+              <p className="text-[9.5px] text-slate-400 italic leading-snug">
+                *Mock events use browser alert popups to simulate tag responses in simulated sandbox builds.
+              </p>
+            </div>
+          </div>
+
+        </div>
+      )}
+
       {activeTab === 'permissions' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 max-w-7xl w-full animate-fade-in text-xs" id="permissions-tab">
           
@@ -3377,6 +4053,7 @@ export const AdminPanel: React.FC = () => {
                       <th className="px-5 py-3">User Profile</th>
                       <th className="px-4 py-3">Credentials Key</th>
                       <th className="px-4 py-3">Authority Degree</th>
+                      <th className="px-4 py-3">Custom Password</th>
                       <th className="px-5 py-3 text-right">Administrative Actions</th>
                     </tr>
                   </thead>
@@ -3385,6 +4062,7 @@ export const AdminPanel: React.FC = () => {
                       .map((u) => {
                         const isSelf = u.email.toLowerCase() === currentAdminUser?.email?.toLowerCase();
                         const isSuperAdmin = currentAdminUser?.role === 'super_admin';
+                        const canEdit = isSuperAdmin || isSelf;
                         
                         return (
                           <tr key={u.email} className="hover:bg-slate-50 transition-colors">
@@ -3406,6 +4084,48 @@ export const AdminPanel: React.FC = () => {
                               }`}>
                                 {u.role === 'super_admin' ? 'SUPER_ROOT' : u.role === 'admin' ? 'ADMIN' : 'CUSTOMER'}
                               </span>
+                            </td>
+                            <td className="px-4 py-3.5">
+                              {canEdit ? (
+                                <div className="flex items-center gap-1.5 max-w-[200px]">
+                                  <input
+                                    type="text"
+                                    className="w-full rounded border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-mono focus:bg-white focus:border-indigo-500 transition-colors focus:ring-1 focus:ring-indigo-200"
+                                    value={editingPasswords[u.email] !== undefined ? editingPasswords[u.email] : u.passwordHash}
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      setEditingPasswords(prev => ({ ...prev, [u.email]: val }));
+                                    }}
+                                    placeholder="Password string"
+                                  />
+                                  {(editingPasswords[u.email] !== undefined && editingPasswords[u.email] !== u.passwordHash) && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const nextPass = (editingPasswords[u.email] || '').trim();
+                                        if (!nextPass) {
+                                          alert('Password cannot be blank');
+                                          return;
+                                        }
+                                        updateUserPassword(u.email, nextPass);
+                                        setPasswordSavedEmail(u.email);
+                                        setTimeout(() => setPasswordSavedEmail(null), 2500);
+                                      }}
+                                      title="Save custom password"
+                                      className="p-1.5 rounded bg-indigo-50 hover:bg-indigo-100 text-indigo-600 transition-colors shrink-0 cursor-pointer"
+                                    >
+                                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
+                                        <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clipRule="evenodd" />
+                                      </svg>
+                                    </button>
+                                  )}
+                                  {passwordSavedEmail === u.email && (
+                                    <span className="text-[10px] text-emerald-600 font-bold shrink-0 animate-fade-in">Saved!</span>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="text-[11px] font-mono text-slate-400 select-none">•••••••• (Locked)</span>
+                              )}
                             </td>
                             <td className="px-5 py-3.5 text-right font-sans">
                               {isSelf ? (
