@@ -12,7 +12,47 @@ export default defineConfig(() => {
         name: 'api-server-middleware',
         configureServer(server) {
           server.middlewares.use(async (req, res, next) => {
-            if (req.url && (req.url === '/api/store' || req.url.startsWith('/api/store?'))) {
+            if (req.url && (req.url === '/sitemap.xml' || req.url.startsWith('/sitemap.xml?'))) {
+              const vercelRes = {
+                status(code: number) {
+                  res.statusCode = code;
+                  return this;
+                },
+                send(data: any) {
+                  res.end(data);
+                  return this;
+                },
+                json(data: any) {
+                  res.setHeader('Content-Type', 'application/json');
+                  res.end(JSON.stringify(data));
+                  return this;
+                },
+                setHeader(name: string, value: string) {
+                  res.setHeader(name, value);
+                  return this;
+                },
+                end(data?: any) {
+                  res.end(data);
+                  return this;
+                }
+              };
+
+              const vercelReq = {
+                method: req.method,
+                body: null,
+                headers: req.headers
+              };
+
+              try {
+                const { default: handler } = await import('./api/sitemap.js');
+                await handler(vercelReq as any, vercelRes as any);
+              } catch (err: any) {
+                console.error('Local Development Sitemap Error:', err);
+                res.statusCode = 500;
+                res.setHeader('Content-Type', 'text/plain');
+                res.end('Sitemap local development error: ' + err.message);
+              }
+            } else if (req.url && (req.url === '/api/store' || req.url.startsWith('/api/store?'))) {
               // Parse POST body if present
               let body = '';
               if (req.method === 'POST') {

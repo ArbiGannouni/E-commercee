@@ -10,7 +10,8 @@ import {
   TrendingUp, Package, ShoppingCart, Users, Coins, Tag, 
   Settings, Trash2, Edit3, Plus, Sliders, CheckCircle, 
   ArrowRight, ShieldAlert, Lock, Sparkles, Filter, Search,
-  Palette, Mail, Bell, MessageCircle, MessageSquare
+  Palette, Mail, Bell, MessageCircle, MessageSquare,
+  Database, Server, CloudLightning, RefreshCw
 } from 'lucide-react';
 import { SALES_TRENDS } from '../data/mockProducts';
 
@@ -41,7 +42,10 @@ export const AdminPanel: React.FC = () => {
     updateAdminPermissions,
     updateUserRole,
     createNewAdmin,
-    userCredentials
+    userCredentials,
+    dbSyncStatus,
+    dbError,
+    manualSyncDb
   } = useStore();
 
   // Navigation Sub-views inside Admin Panel
@@ -1859,6 +1863,94 @@ export const AdminPanel: React.FC = () => {
                 </div>
               </div>
 
+              {/* SEO, FAVICON, & SEARCH INDEX CONFIGURATION */}
+              <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
+                <h3 className="font-display text-xs font-bold font-mono uppercase tracking-widest text-slate-400 pb-3 border-b border-slate-100 flex items-center">
+                  <Database className="h-4.5 w-4.5 mr-1.5 text-indigo-600" /> SEO & Favicon Settings
+                </h3>
+
+                <div className="space-y-4">
+                  {/* Favicon URL with live preview */}
+                  <div className="space-y-2">
+                    <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400">
+                      Favicon Link URL
+                    </label>
+                    <div className="flex items-center space-x-3">
+                      <div className="h-10 w-10 rounded-lg border border-slate-200 bg-slate-50 overflow-hidden flex-shrink-0 flex items-center justify-center p-1.5">
+                        <img
+                          src={settings.faviconUrl || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=128&h=128&fit=crop&q=80'}
+                          alt="Favicon preview"
+                          className="h-full w-full object-contain rounded"
+                          referrerPolicy="no-referrer"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=128&h=128&fit=crop&q=80';
+                          }}
+                        />
+                      </div>
+                      <input
+                        type="text"
+                        className="flex-1 rounded-lg border border-slate-200 bg-slate-50 py-2 px-3 text-xs outline-none focus:bg-white focus:border-indigo-500 font-mono text-slate-800"
+                        placeholder="Paste favicon link URL..."
+                        value={settings.faviconUrl || ''}
+                        onChange={(e) => updateSettings({ faviconUrl: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  {/* SEO Title */}
+                  <div>
+                    <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 mb-1">
+                      Meta Index Title (SEO)
+                    </label>
+                    <input
+                      type="text"
+                      className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2.5 px-3 text-xs font-semibold outline-none focus:bg-white focus:border-indigo-500 text-slate-800"
+                      value={settings.seoTitle || ''}
+                      onChange={(e) => updateSettings({ seoTitle: e.target.value })}
+                      placeholder="e.g. AETHER OBJECTS — Timeless Artisan Storefront"
+                    />
+                  </div>
+
+                  {/* SEO Description */}
+                  <div>
+                    <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 mb-1">
+                      Meta Index Description
+                    </label>
+                    <textarea
+                      rows={3}
+                      className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 px-3 text-xs outline-none focus:bg-white focus:border-indigo-500 text-slate-800 leading-normal"
+                      value={settings.seoDescription || ''}
+                      onChange={(e) => updateSettings({ seoDescription: e.target.value })}
+                      placeholder="Timeless home and workplace coordinates crafted from premium North American materials..."
+                    />
+                  </div>
+
+                  {/* SEO Keywords */}
+                  <div>
+                    <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 mb-1">
+                      Meta Keywords list (separated by commas)
+                    </label>
+                    <input
+                      type="text"
+                      className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2.5 px-3 text-xs outline-none focus:bg-white focus:border-indigo-500 text-slate-800 font-mono"
+                      value={settings.seoKeywords || ''}
+                      onChange={(e) => updateSettings({ seoKeywords: e.target.value })}
+                      placeholder="artisan, stationery, workspace, premium, object"
+                    />
+                  </div>
+
+                  <div className="bg-slate-50 border border-slate-150 rounded-xl p-3 text-[10.5px] text-slate-500 space-y-1 text-left leading-relaxed">
+                    <p className="font-bold text-slate-600 flex items-center">
+                      <Sparkles className="h-3 w-3 mr-1 text-indigo-500" /> Automated Search Index Features:
+                    </p>
+                    <ul className="list-disc pl-4 space-y-1">
+                      <li>Your sitemap at <code className="bg-slate-100 px-1 py-0.5 rounded font-mono font-bold text-slate-700">/sitemap.xml</code> syncs with Google and Bing search crawlers.</li>
+                      <li>Page titles and descriptions automatically update when items are viewed inside the store.</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
               {/* OPERATIONAL FEES & TAXES CONFIGURATION */}
               <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
                 <h3 className="font-display text-xs font-bold font-mono uppercase tracking-widest text-slate-400 pb-3 border-b border-slate-100 mb-5 flex items-center">
@@ -2531,6 +2623,108 @@ export const AdminPanel: React.FC = () => {
                     </div>
                   </div>
 
+                </div>
+              </div>
+
+              {/* CLOUD DATABASE SYNCHRONIZATION */}
+              <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-6">
+                <div className="pb-4 border-b border-slate-100 flex items-center justify-between">
+                  <div>
+                    <h3 className="font-display text-sm font-bold text-slate-800 flex items-center">
+                      <Database className="h-4.5 w-4.5 mr-1.5 text-indigo-600" /> Cloud Database Connection & Backup Sync
+                    </h3>
+                    <p className="text-[11px] text-slate-400 mt-1">
+                      Manage real-time updates and synchronization with your MongoDB Atlas database cluster.
+                    </p>
+                  </div>
+                  
+                  {/* Status Indicator Badge */}
+                  <div className={`px-2.5 py-1 rounded-full text-[10px] font-mono font-bold flex items-center space-x-1 ${
+                    dbSyncStatus === 'synced' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
+                    dbSyncStatus === 'loading' ? 'bg-amber-50 text-amber-700 border border-amber-200' :
+                    dbSyncStatus === 'error' ? 'bg-rose-50 text-rose-700 border border-rose-250 animate-pulse' :
+                    'bg-slate-50 text-slate-600 border border-slate-200'
+                  }`}>
+                    <span className={`h-1.5 w-1.5 rounded-full ${
+                      dbSyncStatus === 'synced' ? 'bg-emerald-500' :
+                      dbSyncStatus === 'loading' ? 'bg-amber-500' :
+                      dbSyncStatus === 'error' ? 'bg-rose-500' :
+                      'bg-slate-400'
+                    }`} />
+                    <span className="uppercase tracking-wider font-mono text-[9px]">
+                      {dbSyncStatus === 'synced' ? 'DB Connected' :
+                       dbSyncStatus === 'loading' ? 'Syncing...' :
+                       dbSyncStatus === 'error' ? 'SSL / Connection Error' :
+                       'Offline Storage'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  {dbSyncStatus === 'error' && (
+                    <div className="bg-rose-50 border border-rose-200 rounded-xl p-4 text-xs space-y-3 text-left">
+                      <div className="flex items-start space-x-2 text-rose-850">
+                        <ShieldAlert className="h-4.5 w-4.5 mt-0.5 text-rose-600 flex-shrink-0" />
+                        <div>
+                          <p className="font-bold">MongoDB Atlas Connection Blocked (IP Access Restricted)</p>
+                          <p className="mt-1 text-rose-700 text-[10.5px] leading-relaxed font-mono bg-rose-100/50 p-2 rounded border border-rose-200/50">
+                            {dbError || 'ERR_SSL_TLSV1_ALERT_INTERNAL_ERROR (SSL Alert 80)'}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="bg-white border border-rose-100 rounded-lg p-3 text-[11px] space-y-1.5 text-slate-705">
+                        <p className="font-bold text-slate-800">💡 How to fix in 1 Minute:</p>
+                        <ol className="list-decimal pl-4 space-y-1.5 leading-relaxed text-slate-600">
+                          <li>Go to your <strong>MongoDB Atlas Dashboard</strong>.</li>
+                          <li>Navigate to the <strong>Security &rarr; Network Access</strong> tab in the left sidebar.</li>
+                          <li>Click on <strong>Add IP Address</strong>.</li>
+                          <li>Choose <strong>"Allow Access From Anywhere"</strong> (this automatically fills <code className="bg-slate-100 px-1 py-0.5 rounded font-mono font-bold text-slate-800">0.0.0.0/0</code>).</li>
+                          <li>Click <strong>Confirm</strong> and wait 30 seconds for Atlas to update. Our application will connect automatically!</li>
+                        </ol>
+                      </div>
+                    </div>
+                  )}
+
+                  {dbSyncStatus === 'synced' && (
+                    <div className="bg-emerald-50/50 border border-emerald-150 rounded-xl p-4 text-xs flex items-center space-x-3 text-emerald-850 text-left">
+                      <CheckCircle className="h-4.5 w-4.5 text-emerald-600 flex-shrink-0" />
+                      <div>
+                        <p className="font-bold text-emerald-800">Database status healthy & active</p>
+                        <p className="text-[10.5px] text-emerald-700 mt-0.5 leading-normal">
+                          All products, orders, promo codes, configurations, and accounts are automatically synchronized to your Atlas cluster. Open the dashboard on any other device or PC to manage instantly.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-t border-slate-100 pt-4 gap-3">
+                    <div className="space-y-0.5 text-left">
+                      <span className="block text-[10px] font-mono text-slate-400 font-bold uppercase tracking-wider">Manual Cluster Synchronization</span>
+                      <span className="text-[10.5px] text-slate-500">Force immediate state dump/clone to MongoDB server</span>
+                    </div>
+
+                    <button
+                      type="button"
+                      disabled={dbSyncStatus === 'loading'}
+                      onClick={async () => {
+                        const success = await manualSyncDb();
+                        if (success) {
+                          alert('💾 Local store state saved & backed up to MongoDB cluster successfully!');
+                        } else {
+                          alert('❌ Database connection failed.\n\nThis is usually due to MongoDB Atlas Network Access rules. Please make sure IP Address "0.0.0.0/0" (All Access) is added in Network Access.');
+                        }
+                      }}
+                      className={`h-9 px-4 rounded-xl flex items-center space-x-1.5 text-xs font-bold transition-all border outline-none cursor-pointer hover:scale-[1.01] ${
+                        dbSyncStatus === 'loading'
+                          ? 'border-slate-200 bg-slate-50 text-slate-400'
+                          : 'border-indigo-200 bg-indigo-50/30 text-indigo-700 hover:bg-indigo-50/80 active:bg-indigo-50'
+                      }`}
+                    >
+                      <RefreshCw className={`h-3.5 w-3.5 ${dbSyncStatus === 'loading' ? 'animate-spin' : ''}`} />
+                      <span>{dbSyncStatus === 'loading' ? 'Saving Backup...' : 'Save Backup to MongoDB'}</span>
+                    </button>
+                  </div>
                 </div>
               </div>
 

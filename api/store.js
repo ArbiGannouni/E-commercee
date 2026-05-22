@@ -14,7 +14,10 @@ async function connectToDatabase() {
   if (!uri || (!uri.startsWith('mongodb://') && !uri.startsWith('mongodb+srv://'))) {
     uri = 'mongodb+srv://jouhanarbi_db_user:kE3tZAKQ31KV4Xru@cluster0.mwrngyd.mongodb.net/?appName=Cluster0';
   }
-  const client = new MongoClient(uri);
+  const client = new MongoClient(uri, {
+    serverSelectionTimeoutMS: 5000,
+    connectTimeoutMS: 5000,
+  });
   await client.connect();
   const db = client.db('aether_store');
   cachedClient = client;
@@ -96,6 +99,14 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (error) {
     console.error('Database connection error:', error);
-    return res.status(500).json({ error: 'Database context failure', details: error.message });
+    let suggestFix = '';
+    if (error.message && (error.message.includes('SSL') || error.message.includes('alert') || error.message.includes('ServerSelectionError') || error.message.includes('MongoServerSelectionError'))) {
+      suggestFix = ' This is likely caused by MongoDB Atlas IP Whitelisting. Since Vercel/Cloud Run uses dynamic outbound IPs, you must go to your MongoDB Atlas dashboard, navigate to "Network Access" under Security, click "Add IP Address", choose "Allow Access From Anywhere" (0.0.0.0/0), and click Confirm.';
+    }
+    return res.status(500).json({ 
+      error: 'Database context failure: ' + error.message, 
+      details: error.message,
+      suggestion: suggestFix || undefined
+    });
   }
 }

@@ -27,6 +27,17 @@ app.all('/api/store', async (req, res) => {
   }
 });
 
+// Dynamic XML Sitemap endpoint
+import sitemapHandler from './api/sitemap.js';
+app.all('/sitemap.xml', async (req, res) => {
+  try {
+    await sitemapHandler(req, res);
+  } catch (err) {
+    console.error('Express dynamic sitemap handler error:', err);
+    res.status(500).setHeader('Content-Type', 'text/plain').send('Sitemap generation error');
+  }
+});
+
 // Serve the compiled static assets
 app.use(express.static(path.join(__dirname, 'dist')));
 

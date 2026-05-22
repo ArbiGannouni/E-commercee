@@ -46,6 +46,12 @@ interface StoreSettings {
   messengerId?: string;
   contactWidgetPosition?: 'right' | 'left';
   contactWidgetText?: string;
+
+  // SEO & Favicon Configurations
+  faviconUrl?: string;
+  seoTitle?: string;
+  seoDescription?: string;
+  seoKeywords?: string;
 }
 
 interface StoreContextType {
@@ -114,6 +120,9 @@ interface StoreContextType {
   updateSettings: (settings: Partial<StoreSettings>) => void;
   addPromoCode: (promo: PromoCode) => void;
   togglePromoCode: (code: string) => void;
+  dbSyncStatus: 'loading' | 'synced' | 'error' | 'idle';
+  dbError: string | null;
+  manualSyncDb: () => Promise<boolean>;
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
@@ -192,7 +201,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       whatsappNumber: '15550199',
       messengerId: 'aether.objects',
       contactWidgetPosition: 'right',
-      contactWidgetText: 'Support'
+      contactWidgetText: 'Support',
+
+      // Brand SEO Constants Default
+      faviconUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=128&h=128&fit=crop&q=80',
+      seoTitle: 'AETHER OBJECTS — Timeless Artisan Storefront & Workflow Instruments',
+      seoDescription: 'Handcrafted premium work tools, sculptural lighting coordinates, fine stationery diaries, and desk furniture. Engineered to harmonize and elevate your creative workspace.',
+      seoKeywords: 'artisan workspace, desk instruments, minimalist organizer, fine stationery, walnut risers, designer shop, Tunisia'
     };
     if (saved) {
       try {
@@ -325,10 +340,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // --- Database Synchronization ---
   const [dbLoading, setDbLoading] = useState(true);
+  const [dbSyncStatus, setDbSyncStatus] = useState<'loading' | 'synced' | 'error' | 'idle'>('loading');
+  const [dbError, setDbError] = useState<string | null>(null);
 
   // Load state from MongoDB on Mount
   useEffect(() => {
     const loadFromDatabase = async () => {
+      setDbSyncStatus('loading');
       try {
         const response = await fetch('/api/store');
         if (response.ok) {
@@ -344,15 +362,64 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             if (Array.isArray(data.simulatedEmails)) setSimulatedEmails(data.simulatedEmails);
             console.log('🎉 Successfully sync\'d all collections from MongoDB cluster');
           }
+          setDbSyncStatus('synced');
+          setDbError(null);
+        } else {
+          const errData = await response.json().catch(() => ({}));
+          setDbSyncStatus('error');
+          setDbError(errData.error || 'Server responded with an error');
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error('Failed to sync state from database, using offline storage:', err);
+        setDbSyncStatus('error');
+        setDbError(err.message || String(err));
       } finally {
         setDbLoading(false);
       }
     };
     loadFromDatabase();
   }, []);
+
+  // Manual trigger to force-sync back to database
+  const manualSyncDb = async (): Promise<boolean> => {
+    setDbSyncStatus('loading');
+    try {
+      const payload = {
+        products,
+        orders,
+        customers,
+        promoCodes,
+        settings,
+        userCredentials,
+        simulatedEmails,
+        adminPermissions
+      };
+      const response = await fetch('/api/store', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+      if (response.ok) {
+        console.log('💾 Successfully saved backup to MongoDB');
+        setDbSyncStatus('synced');
+        setDbError(null);
+        return true;
+      } else {
+        const errData = await response.json().catch(() => ({}));
+        console.error('Failed to dump state backup to MongoDB');
+        setDbSyncStatus('error');
+        setDbError(errData.error || 'Failed to sync to database');
+        return false;
+      }
+    } catch (err: any) {
+      console.error('Error manual syncing to MongoDB:', err);
+      setDbSyncStatus('error');
+      setDbError(err.message || String(err));
+      return false;
+    }
+  };
 
   // Save changes back to MongoDB (debounced to prevent spamming server)
   useEffect(() => {
@@ -379,13 +446,20 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         });
         if (response.ok) {
           console.log('💾 Successfully saved active state backup to MongoDB');
+          setDbSyncStatus('synced');
+          setDbError(null);
         } else {
+          const errData = await response.json().catch(() => ({}));
           console.error('Failed to dump state backup to MongoDB');
+          setDbSyncStatus('error');
+          setDbError(errData.error || 'Failed to auto-sync to database');
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error('Error auto-syncing to MongoDB:', err);
+        setDbSyncStatus('error');
+        setDbError(err.message || String(err));
       }
-    }, 1200);
+    }, 1500);
 
     return () => clearTimeout(timer);
   }, [products, orders, customers, promoCodes, settings, userCredentials, simulatedEmails, adminPermissions, dbLoading]);
@@ -896,7 +970,10 @@ Aether Automatons & Supply Bot`,
       setLoggedInAdmin,
       updateSettings,
       addPromoCode,
-      togglePromoCode
+      togglePromoCode,
+      dbSyncStatus,
+      dbError,
+      manualSyncDb
     }}>
       {children}
     </StoreContext.Provider>
