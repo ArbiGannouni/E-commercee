@@ -85,7 +85,9 @@ const MainAppContent: React.FC = () => {
         error={dbError} 
         syncStatus={dbSyncStatus} 
         storeName={settings.storeName}
-        logoUrl={settings.faviconUrl}
+        logoType={settings.logoType}
+        logoImage={settings.logoImage}
+        logoText={settings.logoText}
         themeName={settings.websiteTheme}
       />
     );

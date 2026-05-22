@@ -8,7 +8,9 @@ interface LoadingScreenProps {
   error?: string | null;
   syncStatus?: 'loading' | 'synced' | 'error' | 'idle';
   storeName?: string;
-  logoUrl?: string;
+  logoType?: 'text' | 'image';
+  logoImage?: string;
+  logoText?: string;
   themeName?: string;
 }
 
@@ -27,7 +29,9 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
   error, 
   syncStatus,
   storeName,
-  logoUrl,
+  logoType,
+  logoImage,
+  logoText,
   themeName
 }) => {
   const [tipIndex, setTipIndex] = useState(0);
@@ -136,7 +140,6 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
   };
 
   const flares = getFlareColors(activeThemeName);
-  const displayLogo = logoUrl || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=128&h=128&fit=crop&q=80';
   const displayTitle = storeName || 'AETHER OBJECTS';
 
   return (
@@ -160,15 +163,21 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
               className={`w-full h-full rounded-full border p-1 flex items-center justify-center relative overflow-hidden ${flares.circle} ${theme.cardBg}`}
             >
               <div className={`absolute inset-0 ${flares.ping} rounded-full animate-ping opacity-25`} />
-              <img 
-                src={displayLogo} 
-                alt="Brand Logo" 
-                referrerPolicy="no-referrer"
-                className="h-full w-full object-cover rounded-full"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).style.display = 'none';
-                }}
-              />
+              {logoType === 'image' && logoImage ? (
+                <img 
+                  src={logoImage} 
+                  alt="Brand Logo" 
+                  referrerPolicy="no-referrer"
+                  className="h-full w-full object-cover rounded-full"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = 'none';
+                  }}
+                />
+              ) : (
+                <div className={`w-full h-full rounded-full ${theme.accentBg} text-white font-display text-2xl font-bold tracking-tighter flex items-center justify-center shadow-inner select-none uppercase`}>
+                  {logoText || 'Æ'}
+                </div>
+              )}
             </motion.div>
           </motion.div>
 
