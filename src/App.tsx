@@ -13,9 +13,11 @@ import { LoginPage } from './components/LoginPage';
 import { CartDrawer } from './components/CartDrawer';
 import { CheckoutFlow } from './components/CheckoutFlow';
 import { getTheme } from './utils/theme';
+import { LoadingScreen } from './components/LoadingScreen';
 
 const MainAppContent: React.FC = () => {
-  const { currentView, settings, activeProductDetail } = useStore();
+  const { currentView, settings, activeProductDetail, dbLoading, dbSyncStatus, dbError } = useStore();
+  const [bypassed, setBypassed] = React.useState(false);
   const theme = getTheme(settings.websiteTheme);
 
   React.useEffect(() => {
@@ -75,6 +77,18 @@ const MainAppContent: React.FC = () => {
     const faviconUrl = settings.faviconUrl || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=128&h=128&fit=crop&q=80';
     faviconLink.setAttribute('href', faviconUrl);
   }, [settings, currentView, activeProductDetail]);
+
+  if (dbLoading && !bypassed) {
+    return (
+      <LoadingScreen 
+        onBypass={() => setBypassed(true)} 
+        error={dbError} 
+        syncStatus={dbSyncStatus} 
+        storeName={settings.storeName}
+        logoUrl={settings.faviconUrl}
+      />
+    );
+  }
 
   return (
     <div className={`flex min-h-screen flex-col font-sans transition-colors duration-300 ${theme.backdrop} ${theme.textPrimary}`}>

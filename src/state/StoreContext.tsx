@@ -123,6 +123,7 @@ interface StoreContextType {
   dbSyncStatus: 'loading' | 'synced' | 'error' | 'idle';
   dbError: string | null;
   manualSyncDb: () => Promise<boolean>;
+  dbLoading: boolean;
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
@@ -973,7 +974,8 @@ Aether Automatons & Supply Bot`,
       togglePromoCode,
       dbSyncStatus,
       dbError,
-      manualSyncDb
+      manualSyncDb,
+      dbLoading
     }}>
       {children}
     </StoreContext.Provider>
