@@ -11,6 +11,21 @@ import { getTheme } from '../utils/theme';
 import { SpendingChart } from './SpendingChart';
 import { getTranslation } from '../utils/translations';
 
+const isVideoUrl = (url: string | undefined): boolean => {
+  if (!url) return false;
+  const u = url.toLowerCase();
+  return (
+    u.includes('youtube.com') ||
+    u.includes('youtu.be') ||
+    u.includes('vimeo.com') ||
+    u.endsWith('.mp4') ||
+    u.endsWith('.webm') ||
+    u.endsWith('.ogg') ||
+    u.includes('/embed/') ||
+    u.includes('video')
+  );
+};
+
 interface ProductSkeletonProps {
   themeType: string;
   websiteTheme?: string;
@@ -1563,112 +1578,124 @@ export const ShopLayout: React.FC = () => {
             {/* Left media visual panel */}
             <div className="w-full md:w-1/2 bg-slate-50 relative border-r border-slate-100 flex flex-col">
               <div className="flex-1 overflow-hidden relative min-h-[300px] aspect-square md:aspect-auto">
-                {viewingVideo && activeProductDetail.videoUrl ? (() => {
-                  const url = activeProductDetail.videoUrl;
-                  const isYoutube = url.includes('youtube.com') || url.includes('youtu.be');
-                  if (isYoutube) {
-                    let embedUrl = url;
-                    if (!url.includes('embed/')) {
-                      const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-                      const match = url.match(regExp);
-                      if (match && match[2].length === 11) {
-                        embedUrl = `https://www.youtube.com/embed/${match[2]}?autoplay=1&mute=1&loop=1&playlist=${match[2]}`;
+                {(() => {
+                  const activeMediaUrl = selectedDetailImage || activeProductDetail.image;
+                  const playVideoUrl = isVideoUrl(activeMediaUrl) 
+                    ? activeMediaUrl 
+                    : (viewingVideo && activeProductDetail.videoUrl ? activeProductDetail.videoUrl : null);
+
+                  if (playVideoUrl) {
+                    const isYoutube = playVideoUrl.includes('youtube.com') || playVideoUrl.includes('youtu.be') || playVideoUrl.includes('embed');
+                    if (isYoutube) {
+                      let embedUrl = playVideoUrl;
+                      if (!playVideoUrl.includes('embed/')) {
+                        const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+                        const match = playVideoUrl.match(regExp);
+                        if (match && match[2].length === 11) {
+                          embedUrl = `https://www.youtube.com/embed/${match[2]}?autoplay=1&mute=1&loop=1&playlist=${match[2]}`;
+                        }
                       }
+                      return (
+                        <iframe
+                          src={embedUrl}
+                          title="Product Video"
+                          frameBorder="0"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                          allowFullScreen
+                          className="h-full w-full object-cover min-h-[300px]"
+                        />
+                      );
+                    } else {
+                      return (
+                        <video
+                          src={playVideoUrl}
+                          controls
+                          autoPlay
+                          muted
+                          loop
+                          className="h-full w-full object-cover min-h-[300px]"
+                        />
+                      );
                     }
-                    return (
-                      <iframe
-                        src={embedUrl}
-                        title="Product Video"
-                        frameBorder="0"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                        allowFullScreen
-                        className="h-full w-full object-cover min-h-[300px]"
-                      />
-                    );
                   } else {
                     return (
-                      <video
-                        src={url}
-                        controls
-                        autoPlay
-                        muted
-                        loop
-                        className="h-full w-full object-cover min-h-[300px]"
+                      <img
+                        src={activeMediaUrl}
+                        alt={activeProductDetail.name}
+                        referrerPolicy="no-referrer"
+                        className="h-full w-full object-cover transition-all duration-300"
                       />
                     );
                   }
-                })() : (
-                  <img
-                    src={selectedDetailImage || activeProductDetail.image}
-                    alt={activeProductDetail.name}
-                    referrerPolicy="no-referrer"
-                    className="h-full w-full object-cover transition-all duration-300"
-                  />
-                )}
+                })()}
                 <div className={`absolute top-4 left-4 rounded-lg bg-slate-900/80 py-1.5 px-3 text-[10px] tracking-wider ${theme.accentText} font-mono border border-white/10 uppercase font-semibold`}>
                   {activeProductDetail.category}
                 </div>
               </div>
               
               {/* Image Gallery Selection Thumbnails */}
-              {((activeProductDetail.images && activeProductDetail.images.length > 0) || activeProductDetail.videoUrl) && (
-                <div className="p-4 bg-slate-50 border-t border-slate-100">
-                  <span className="block text-[9px] font-mono font-bold uppercase tracking-wider text-slate-400 mb-2">
-                    {settings.language === 'fr' ? 'Galerie de photos & médias' : 'Product Gallery & Media'}
-                  </span>
-                  <div className="flex items-center space-x-2 overflow-x-auto pb-1 scrollbar-none">
-                    {(() => {
-                      const imgUrls = [activeProductDetail.image, ...(activeProductDetail.images || [])]
-                        .filter((val, i, self) => self.indexOf(val) === i);
-                        
-                      return (
-                        <>
-                          {imgUrls.map((imgUrl, idx) => {
-                            const isActive = !viewingVideo && (selectedDetailImage || activeProductDetail.image) === imgUrl;
-                            return (
-                              <button
-                                key={idx}
-                                type="button"
-                                onClick={() => {
-                                  setSelectedDetailImage(imgUrl);
-                                  setViewingVideo(false);
-                                }}
-                                className={`h-11 w-11 rounded-lg overflow-hidden border-2 flex-shrink-0 transition-all ${
-                                  isActive 
-                                    ? 'border-indigo-600 scale-105 shadow-sm' 
-                                    : 'border-transparent hover:border-slate-300'
-                                }`}
-                              >
-                                <img
-                                  src={imgUrl}
-                                  alt=""
-                                  referrerPolicy="no-referrer"
-                                  className="h-full w-full object-cover"
-                                />
-                              </button>
-                            );
-                          })}
+              {(() => {
+                const validMediaList = [
+                  ...(activeProductDetail.image ? [activeProductDetail.image] : []),
+                  ...(activeProductDetail.images || []),
+                  ...(activeProductDetail.videoUrl ? [activeProductDetail.videoUrl] : [])
+                ].filter((val, i, self) => self.indexOf(val) === i);
 
-                          {activeProductDetail.videoUrl && (
-                            <button
-                              type="button"
-                              onClick={() => setViewingVideo(true)}
-                              className={`h-11 w-11 rounded-lg overflow-hidden border-2 flex-shrink-0 transition-all flex flex-col items-center justify-center bg-slate-900 text-white relative ${
-                                viewingVideo 
-                                  ? 'border-indigo-600 scale-105 shadow-sm' 
-                                  : 'border-transparent hover:border-slate-700'
-                              }`}
-                            >
-                              <Play className="h-4 w-4 fill-white" />
-                              <span className="text-[7px] font-mono font-bold mt-0.5 tracking-tighter uppercase px-0.5">VIDEO</span>
-                            </button>
-                          )}
-                        </>
-                      );
-                    })()}
+                const sortedList = (activeProductDetail.mediaOrder || []).filter(x => validMediaList.includes(x));
+                validMediaList.forEach(item => {
+                  if (!sortedList.includes(item)) {
+                    sortedList.push(item);
+                  }
+                });
+
+                const allMediaList = sortedList;
+
+                if (allMediaList.length <= 1) return null;
+
+                return (
+                  <div className="p-4 bg-slate-50 border-t border-slate-100">
+                    <span className="block text-[9px] font-mono font-bold uppercase tracking-wider text-slate-400 mb-2">
+                      {settings.language === 'fr' ? 'Galerie de photos & médias' : 'Product Gallery & Media'}
+                    </span>
+                    <div className="flex items-center space-x-2 overflow-x-auto pb-1 scrollbar-none">
+                      {allMediaList.map((imgUrl, idx) => {
+                        const isThumbnailVideo = isVideoUrl(imgUrl);
+                        const isActive = (selectedDetailImage || activeProductDetail.image) === imgUrl;
+                        
+                        return (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => {
+                              setSelectedDetailImage(imgUrl);
+                              setViewingVideo(isThumbnailVideo);
+                            }}
+                            className={`h-11 w-11 rounded-lg overflow-hidden border-2 flex-shrink-0 transition-all relative group ${
+                              isActive 
+                                ? 'border-indigo-600 scale-105 shadow-sm' 
+                                : 'border-transparent hover:border-slate-300'
+                            }`}
+                          >
+                            {isThumbnailVideo ? (
+                              <div className="h-full w-full bg-slate-950 flex flex-col items-center justify-center text-white">
+                                <Play className="h-3 w-3 fill-emerald-400 text-emerald-400" />
+                                <span className="text-[5.5px] font-mono font-bold uppercase mt-0.5 tracking-tighter">VIDEO</span>
+                              </div>
+                            ) : (
+                              <img
+                                src={imgUrl}
+                                alt=""
+                                referrerPolicy="no-referrer"
+                                className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                              />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
             </div>
 
             {/* Right details content box */}

@@ -13,7 +13,7 @@ import {
   ArrowRight, ShieldAlert, Lock, Sparkles, Filter, Search, ArrowUp, ArrowDown,
   Palette, Mail, Bell, MessageCircle, MessageSquare,
   Database, Server, CloudLightning, RefreshCw, Key, Globe,
-  Upload, Image as ImageIcon, Star
+  Upload, Image as ImageIcon, Star, ChevronLeft, ChevronRight, ArrowLeft
 } from 'lucide-react';
 import { SALES_TRENDS } from '../data/mockProducts';
 
@@ -43,6 +43,21 @@ const parseMultipleUrls = (input: string): string[] => {
     .filter(url => {
       return url.length > 3 && (url.startsWith('http') || url.startsWith('/') || url.startsWith('data:') || url.includes('.'));
     });
+};
+
+const isVideoUrl = (url: string | undefined): boolean => {
+  if (!url) return false;
+  const u = url.toLowerCase();
+  return (
+    u.includes('youtube.com') ||
+    u.includes('youtu.be') ||
+    u.includes('vimeo.com') ||
+    u.endsWith('.mp4') ||
+    u.endsWith('.webm') ||
+    u.endsWith('.ogg') ||
+    u.includes('/embed/') ||
+    u.includes('video')
+  );
 };
 
 export const AdminPanel: React.FC = () => {
@@ -194,6 +209,7 @@ export const AdminPanel: React.FC = () => {
   const [newProdImage, setNewProdImage] = useState('');
   const [newProdImages, setNewProdImages] = useState('');
   const [newProdVideoUrl, setNewProdVideoUrl] = useState('');
+  const [newProdMediaOrder, setNewProdMediaOrder] = useState<string[]>([]);
   
   // Quick Image Link Inputs
   const [quickLinkInput, setQuickLinkInput] = useState('');
@@ -476,6 +492,7 @@ export const AdminPanel: React.FC = () => {
       image: newProdImage || 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=800&auto=format&fit=crop&q=80',
       images: parsedImages.length > 0 ? parsedImages : [newProdImage].filter(Boolean),
       videoUrl: newProdVideoUrl.trim() || undefined,
+      mediaOrder: newProdMediaOrder.length > 0 ? newProdMediaOrder : undefined,
       highlights: highlightList,
       tags: tagList,
       seoTitle: newProdSeoTitle ? newProdSeoTitle.trim() : undefined,
@@ -493,6 +510,7 @@ export const AdminPanel: React.FC = () => {
     setNewProdImage('');
     setNewProdImages('');
     setNewProdVideoUrl('');
+    setNewProdMediaOrder([]);
     setNewProdHighlight('');
     setNewProdTags('');
     setNewProdSeoTitle('');
@@ -1421,76 +1439,161 @@ export const AdminPanel: React.FC = () => {
                   </span>
                 </div>
 
-                {/* Previews Grid with Deletion */}
+                {/* Previews Grid with Deletion & Reordering */}
                 {(() => {
-                  const allImgs = [
+                  const rawList = [
                     ...(newProdImage ? [newProdImage] : []),
                     ...(newProdImages 
                       ? newProdImages.split(/[\n,]/).map((x: string) => x.trim()).filter(Boolean) 
                       : []
-                    )
+                    ),
+                    ...(newProdVideoUrl ? [newProdVideoUrl] : [])
                   ].filter((val, i, self) => self.indexOf(val) === i);
+
+                  const sortedList = newProdMediaOrder.filter(x => rawList.includes(x));
+                  rawList.forEach(item => {
+                    if (!sortedList.includes(item)) {
+                      sortedList.push(item);
+                    }
+                  });
+
+                  const allImgs = sortedList;
 
                   if (allImgs.length === 0) return null;
 
+                  const applyNewOrder = (updated: string[]) => {
+                    setNewProdMediaOrder(updated);
+
+                    // Extract video url if exists
+                    const videoIdx = updated.findIndex(x => isVideoUrl(x));
+                    let videoVal = '';
+                    let cleanMedia = [...updated];
+                    if (videoIdx !== -1) {
+                      videoVal = updated[videoIdx];
+                      cleanMedia.splice(videoIdx, 1);
+                    }
+                    setNewProdImage(cleanMedia[0] || '');
+                    setNewProdImages(cleanMedia.slice(1).join('\n'));
+                    setNewProdVideoUrl(videoVal);
+                  };
+
                   return (
-                    <div className="space-y-1.5 pt-1 border-t border-slate-100">
+                    <div className="space-y-1.5 pt-1 border-t border-slate-100 opacity-100 transition-all">
                       <div className="flex items-center justify-between">
-                        <span className="text-[9.5px] font-mono text-slate-400 font-bold block uppercase">
-                          Active Gallery ({allImgs.length} Images/Links)
+                        <span className="text-[9.5px] font-mono text-slate-450 font-bold block uppercase">
+                          Active Gallery ({allImgs.length} Media Items)
                         </span>
-                        <span className="text-[8px] text-slate-400">
-                          (Hover thumbnail to set MAIN cover or delete)
+                        <span className="text-[8.5px] text-indigo-650 font-extrabold flex items-center space-x-1 font-mono">
+                          <span>✨ Use arrows to drag/sort gallery</span>
                         </span>
                       </div>
                       <div className="grid grid-cols-5 gap-2 pt-1">
-                        {allImgs.map((img, idx) => (
-                          <div key={idx} className="relative group aspect-square rounded border border-slate-200 overflow-hidden bg-slate-100 shadow-sm">
-                            <img
-                              src={img}
-                              alt=""
-                              className="h-full w-full object-cover"
-                            />
-                            {idx === 0 ? (
-                              <span className="absolute bottom-0 left-0 right-0 bg-indigo-650 text-white text-[7px] font-bold text-center py-0.5 uppercase tracking-wide">
-                                MAIN COVER
-                              </span>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  const filtered = allImgs.filter(item => item !== img);
-                                  setNewProdImage(img);
-                                  setNewProdImages(filtered.join('\n'));
-                                }}
-                                className="absolute inset-0 bg-slate-900/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer duration-150"
-                              >
-                                <span className="bg-white/95 text-slate-900 rounded px-1.5 py-0.5 text-[8px] font-extrabold shadow flex items-center space-x-1 hover:scale-105 active:scale-95 transition-all">
-                                  <Star className="h-2 w-2 text-amber-500 fill-amber-500" />
-                                  <span>SET MAIN</span>
+                        {allImgs.map((img, idx) => {
+                          const isVid = isVideoUrl(img);
+                          return (
+                            <div key={idx} className="relative group aspect-square rounded-xl border border-slate-200 overflow-hidden bg-slate-100 shadow-sm transition-all hover:shadow-md">
+                              {isVid ? (
+                                <div className="h-full w-full bg-slate-900 flex flex-col items-center justify-center text-white p-1">
+                                  <svg className="h-4 w-4 text-emerald-400" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M2 6a2 2 0 012-2h12a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
+                                    <path d="M14 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                  </svg>
+                                  <span className="text-[7.5px] font-mono text-center truncate w-full mt-1 px-1 text-slate-300 font-bold uppercase tracking-wider">Video</span>
+                                </div>
+                              ) : (
+                                <img
+                                  src={img}
+                                  alt=""
+                                  className="h-full w-full object-cover"
+                                />
+                              )}
+                              
+                              {/* Label badge */}
+                              <div className="absolute top-1 left-1 bg-black/60 text-white font-mono text-[7px] px-1 py-0.5 rounded leading-none backdrop-blur-xs font-black z-5">
+                                #{idx + 1}
+                              </div>
+
+                              {idx === 0 && !isVid && (
+                                <span className="absolute bottom-0 left-0 right-0 bg-indigo-650 text-white text-[7px] font-bold text-center py-0.5 uppercase tracking-wide z-5">
+                                  COVER
                                 </span>
-                              </button>
-                            )}
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                const filtered = allImgs.filter(item => item !== img);
-                                if (filtered.length === 0) {
-                                  setNewProdImage('');
-                                  setNewProdImages('');
-                                } else {
-                                  setNewProdImage(filtered[0]);
-                                  setNewProdImages(filtered.slice(1).join('\n'));
-                                }
-                              }}
-                              className="absolute top-1 right-1 bg-rose-600 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-rose-700 shadow-md cursor-pointer duration-150"
-                            >
-                              <Trash2 className="h-2.5 w-2.5" />
-                            </button>
-                          </div>
-                        ))}
+                              )}
+
+                              {/* Hover Overlay containing all reordering actions */}
+                              <div className="absolute inset-0 bg-slate-900/80 opacity-0 group-hover:opacity-100 transition-opacity duration-150 flex flex-col justify-between p-1.5 z-10">
+                                <div className="w-full flex items-center justify-between">
+                                  <span className="text-[7px] font-bold text-slate-300 font-mono">
+                                    {isVid ? 'VIDEO' : 'IMAGE'}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      const filtered = allImgs.filter(item => item !== img);
+                                      applyNewOrder(filtered);
+                                    }}
+                                    className="bg-rose-600 hover:bg-rose-700 text-white rounded-full p-1 cursor-pointer hover:scale-105 active:scale-95 transition-all"
+                                  >
+                                    <Trash2 className="h-2 w-2" />
+                                  </button>
+                                </div>
+
+                                {!isVid && idx !== 0 && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      const filtered = allImgs.filter(item => item !== img);
+                                      const reordered = [img, ...filtered];
+                                      applyNewOrder(reordered);
+                                    }}
+                                    className="mx-auto bg-white hover:bg-slate-50 text-slate-900 font-extrabold text-[7.5px] px-1.5 py-0.5 rounded shadow-sm hover:scale-105 active:scale-95 transition-all flex items-center space-x-0.5"
+                                  >
+                                    <Star className="h-1.5 w-1.5 text-amber-500 fill-amber-500" />
+                                    <span>MAKE COVER</span>
+                                  </button>
+                                )}
+
+                                {/* Arrow keys */}
+                                <div className="flex items-center justify-between bg-white text-slate-800 rounded px-1 py-0.5 w-full shadow-sm">
+                                  <button
+                                    type="button"
+                                    disabled={idx === 0}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (idx === 0) return;
+                                      const updated = [...allImgs];
+                                      const temp = updated[idx];
+                                      updated[idx] = updated[idx - 1];
+                                      updated[idx - 1] = temp;
+                                      applyNewOrder(updated);
+                                    }}
+                                    className={`p-0.5 rounded ${idx === 0 ? 'opacity-35 cursor-not-allowed text-slate-300' : 'hover:bg-slate-100 text-slate-900 hover:text-indigo-650 cursor-pointer active:scale-95'}`}
+                                  >
+                                    <ChevronLeft className="h-2.5 w-2.5 stroke-[2.5]" />
+                                  </button>
+                                  <span className="text-[6.5px] font-extrabold font-mono text-slate-500">SORT</span>
+                                  <button
+                                    type="button"
+                                    disabled={idx === allImgs.length - 1}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (idx === allImgs.length - 1) return;
+                                      const updated = [...allImgs];
+                                      const temp = updated[idx];
+                                      updated[idx] = updated[idx + 1];
+                                      updated[idx + 1] = temp;
+                                      applyNewOrder(updated);
+                                    }}
+                                    className={`p-0.5 rounded ${idx === allImgs.length - 1 ? 'opacity-35 cursor-not-allowed text-slate-300' : 'hover:bg-slate-100 text-slate-900 hover:text-indigo-650 cursor-pointer active:scale-95'}`}
+                                  >
+                                    <ChevronRight className="h-2.5 w-2.5 stroke-[2.5]" />
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   );
@@ -1929,82 +2032,160 @@ export const AdminPanel: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Previews Grid with Deletion */}
+                  {/* Previews Grid with Deletion & Reordering */}
                   {(() => {
-                    const allImgs = [
+                    const rawList = [
                       ...(editingProduct.image ? [editingProduct.image] : []),
-                      ...(editingProduct.images || [])
+                      ...(editingProduct.images || []),
+                      ...(editingProduct.videoUrl ? [editingProduct.videoUrl] : [])
                     ].filter((val, i, self) => self.indexOf(val) === i);
+
+                    const sortedList = (editingProduct.mediaOrder || []).filter(x => rawList.includes(x));
+                    rawList.forEach(item => {
+                      if (!sortedList.includes(item)) {
+                        sortedList.push(item);
+                      }
+                    });
+
+                    const allImgs = sortedList;
 
                     if (allImgs.length === 0) return null;
 
+                    const applyNewOrder = (updated: string[]) => {
+                      // Extract video url if exists
+                      const videoIdx = updated.findIndex(x => isVideoUrl(x));
+                      let videoVal = '';
+                      let cleanMedia = [...updated];
+                      if (videoIdx !== -1) {
+                        videoVal = updated[videoIdx];
+                        cleanMedia.splice(videoIdx, 1);
+                      }
+                      setEditingProduct({
+                        ...editingProduct,
+                        image: cleanMedia[0] || '',
+                        images: cleanMedia.slice(1),
+                        videoUrl: videoVal || undefined,
+                        mediaOrder: updated
+                      });
+                    };
+
                     return (
-                      <div className="space-y-1.5 pt-1 border-t border-slate-100">
+                      <div className="space-y-1.5 pt-1 border-t border-slate-100 opacity-100 transition-all">
                         <div className="flex items-center justify-between">
-                          <span className="text-[9.5px] font-mono text-slate-400 font-bold block uppercase">
-                            Active Gallery ({allImgs.length} Images/Links)
+                          <span className="text-[9.5px] font-mono text-slate-450 font-bold block uppercase">
+                            Active Gallery ({allImgs.length} Media Items)
                           </span>
-                          <span className="text-[8px] text-slate-400 font-mono font-bold">
-                            (Hover thumbnail to set MAIN cover or delete)
+                          <span className="text-[8.5px] text-indigo-650 font-extrabold flex items-center space-x-1 font-mono">
+                            <span>✨ Use arrows to drag/sort gallery</span>
                           </span>
                         </div>
                         <div className="grid grid-cols-5 gap-2 pt-1">
-                          {allImgs.map((img, idx) => (
-                            <div key={idx} className="relative group aspect-square rounded border border-slate-200 overflow-hidden bg-slate-100 shadow-sm">
-                              <img
-                                src={img}
-                                alt=""
-                                className="h-full w-full object-cover"
-                              />
-                              {img === editingProduct.image ? (
-                                <span className="absolute bottom-0 left-0 right-0 bg-indigo-650 text-white text-[7px] font-bold text-center py-0.5 uppercase tracking-wide">
-                                  MAIN COVER
-                                </span>
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    const filtered = allImgs.filter(item => item !== img);
-                                    setEditingProduct({
-                                      ...editingProduct,
-                                      image: img,
-                                      images: filtered
-                                    });
-                                  }}
-                                  className="absolute inset-0 bg-slate-900/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer duration-150"
-                                >
-                                  <span className="bg-white/95 text-slate-900 rounded px-1.5 py-0.5 text-[8px] font-extrabold shadow flex items-center space-x-1 hover:scale-105 active:scale-95 transition-all">
-                                    <Star className="h-2 w-2 text-amber-500 fill-amber-500" />
-                                    <span>SET MAIN</span>
+                          {allImgs.map((img, idx) => {
+                            const isVid = isVideoUrl(img);
+                            return (
+                              <div key={idx} className="relative group aspect-square rounded-xl border border-slate-200 overflow-hidden bg-slate-100 shadow-sm transition-all hover:shadow-md">
+                                {isVid ? (
+                                  <div className="h-full w-full bg-slate-900 flex flex-col items-center justify-center text-white p-1">
+                                    <svg className="h-4 w-4 text-emerald-400" fill="currentColor" viewBox="0 0 20 20">
+                                      <path d="M2 6a2 2 0 012-2h12a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
+                                      <path d="M14 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                    </svg>
+                                    <span className="text-[7.5px] font-mono text-center truncate w-full mt-1 px-1 text-slate-300 font-bold uppercase tracking-wider">Video</span>
+                                  </div>
+                                ) : (
+                                  <img
+                                    src={img}
+                                    alt=""
+                                    className="h-full w-full object-cover"
+                                  />
+                                )}
+                                
+                                {/* Label badge */}
+                                <div className="absolute top-1 left-1 bg-black/60 text-white font-mono text-[7px] px-1 py-0.5 rounded leading-none backdrop-blur-xs font-black z-5">
+                                  #{idx + 1}
+                                </div>
+
+                                {img === editingProduct.image && !isVid && (
+                                  <span className="absolute bottom-0 left-0 right-0 bg-indigo-650 text-white text-[7px] font-bold text-center py-0.5 uppercase tracking-wide z-5">
+                                    COVER
                                   </span>
-                                </button>
-                              )}
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  const filtered = allImgs.filter(item => item !== img);
-                                  if (filtered.length === 0) {
-                                    setEditingProduct({
-                                      ...editingProduct,
-                                      image: '',
-                                      images: []
-                                    });
-                                  } else {
-                                    setEditingProduct({
-                                      ...editingProduct,
-                                      image: filtered[0],
-                                      images: filtered.slice(1)
-                                    });
-                                  }
-                                }}
-                                className="absolute top-1 right-1 bg-rose-600 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-rose-700 shadow-md cursor-pointer duration-150"
-                              >
-                                <Trash2 className="h-2.5 w-2.5" />
-                              </button>
-                            </div>
-                          ))}
+                                )}
+
+                                {/* Hover Overlay containing all reordering actions */}
+                                <div className="absolute inset-0 bg-slate-900/80 opacity-0 group-hover:opacity-100 transition-opacity duration-150 flex flex-col justify-between p-1.5 z-10">
+                                  <div className="w-full flex items-center justify-between">
+                                    <span className="text-[7px] font-bold text-slate-300 font-mono">
+                                      {isVid ? 'VIDEO' : 'IMAGE'}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        const filtered = allImgs.filter(item => item !== img);
+                                        applyNewOrder(filtered);
+                                      }}
+                                      className="bg-rose-600 hover:bg-rose-700 text-white rounded-full p-1 cursor-pointer hover:scale-105 active:scale-95 transition-all"
+                                    >
+                                      <Trash2 className="h-2 w-2" />
+                                    </button>
+                                  </div>
+
+                                  {!isVid && img !== editingProduct.image && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        const filtered = allImgs.filter(item => item !== img);
+                                        const reordered = [img, ...filtered];
+                                        applyNewOrder(reordered);
+                                      }}
+                                      className="mx-auto bg-white hover:bg-slate-50 text-slate-905 font-extrabold text-[7.5px] px-1.5 py-0.5 rounded shadow-sm hover:scale-105 active:scale-95 transition-all flex items-center space-x-0.5"
+                                    >
+                                      <Star className="h-1.5 w-1.5 text-amber-500 fill-amber-500" />
+                                      <span>MAKE COVER</span>
+                                    </button>
+                                  )}
+
+                                  {/* Arrow keys */}
+                                  <div className="flex items-center justify-between bg-white text-slate-800 rounded px-1 py-0.5 w-full shadow-sm">
+                                    <button
+                                      type="button"
+                                      disabled={idx === 0}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (idx === 0) return;
+                                        const updated = [...allImgs];
+                                        const temp = updated[idx];
+                                        updated[idx] = updated[idx - 1];
+                                        updated[idx - 1] = temp;
+                                        applyNewOrder(updated);
+                                      }}
+                                      className={`p-0.5 rounded ${idx === 0 ? 'opacity-35 cursor-not-allowed text-slate-300' : 'hover:bg-slate-100 text-slate-900 hover:text-indigo-650 cursor-pointer active:scale-95'}`}
+                                    >
+                                      <ChevronLeft className="h-2.5 w-2.5 stroke-[2.5]" />
+                                    </button>
+                                    <span className="text-[6.5px] font-extrabold font-mono text-slate-500">SORT</span>
+                                    <button
+                                      type="button"
+                                      disabled={idx === allImgs.length - 1}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (idx === allImgs.length - 1) return;
+                                        const updated = [...allImgs];
+                                        const temp = updated[idx];
+                                        updated[idx] = updated[idx + 1];
+                                        updated[idx + 1] = temp;
+                                        applyNewOrder(updated);
+                                      }}
+                                      className={`p-0.5 rounded ${idx === allImgs.length - 1 ? 'opacity-35 cursor-not-allowed text-slate-300' : 'hover:bg-slate-100 text-slate-900 hover:text-indigo-650 cursor-pointer active:scale-95'}`}
+                                    >
+                                      <ChevronRight className="h-2.5 w-2.5 stroke-[2.5]" />
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
                     );

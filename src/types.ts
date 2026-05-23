@@ -22,6 +22,7 @@ export interface Product {
   seoDescription?: string;
   seoKeywords?: string;
   purchasePrice?: number;
+  mediaOrder?: string[];
 }
 
 export interface CartItem {
