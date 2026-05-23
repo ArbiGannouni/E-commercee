@@ -180,6 +180,13 @@ export const AdminPanel: React.FC = () => {
   const [isGeneratingSeo, setIsGeneratingSeo] = useState(false);
   const [seoError, setSeoError] = useState<string | null>(null);
 
+  // Purchase Price & AI pricing advisory states
+  const [newProdPurchasePrice, setNewProdPurchasePrice] = useState<number | ''>('');
+  const [isSuggestingPrice, setIsSuggestingPrice] = useState(false);
+  const [priceSuggestError, setPriceSuggestError] = useState<string | null>(null);
+  const [newProdPriceSuggestion, setNewProdPriceSuggestion] = useState<{ recommendedPrice: number; markupPercent: number; marginPercent: number; explanation: string } | null>(null);
+  const [editProdPriceSuggestion, setEditProdPriceSuggestion] = useState<{ recommendedPrice: number; markupPercent: number; marginPercent: number; explanation: string } | null>(null);
+
   // Custom Category States
   const [isCustomCategory, setIsCustomCategory] = useState(false);
   const [customCategoryName, setCustomCategoryName] = useState('');
@@ -329,7 +336,8 @@ export const AdminPanel: React.FC = () => {
       tags: tagList,
       seoTitle: newProdSeoTitle ? newProdSeoTitle.trim() : undefined,
       seoDescription: newProdSeoDesc ? newProdSeoDesc.trim() : undefined,
-      seoKeywords: newProdSeoKeywords ? newProdSeoKeywords.trim() : undefined
+      seoKeywords: newProdSeoKeywords ? newProdSeoKeywords.trim() : undefined,
+      purchasePrice: newProdPurchasePrice ? Number(newProdPurchasePrice) : undefined
     });
 
     // Reset Form
@@ -347,6 +355,9 @@ export const AdminPanel: React.FC = () => {
     setSeoError(null);
     setCustomCategoryName('');
     setIsCustomCategory(false);
+    setNewProdPurchasePrice('');
+    setNewProdPriceSuggestion(null);
+    setPriceSuggestError(null);
     setShowAddForm(false);
   };
 
@@ -398,6 +409,42 @@ export const AdminPanel: React.FC = () => {
       setSeoError(err.message || 'An error occurred during Gemini SEO generation.');
     } finally {
       setIsGeneratingSeo(false);
+    }
+  };
+
+  const requestPriceRecommendation = async (name: string, cat: string, desc: string, cost: number, isForEditForm: boolean) => {
+    if (!cost || cost <= 0) {
+      alert('Please enter a valid purchase price (Achat TTC) first.');
+      return;
+    }
+    setIsSuggestingPrice(true);
+    setPriceSuggestError(null);
+    try {
+      const response = await fetch('/api/price-recommend', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          productName: name,
+          category: cat,
+          description: desc,
+          purchasePrice: cost
+        })
+      });
+      if (!response.ok) {
+        const errJson = await response.json().catch(() => ({}));
+        throw new Error(errJson.error || errJson.details || 'Failed to analyze pricing with Gemini.');
+      }
+      const data = await response.json();
+      if (isForEditForm) {
+        setEditProdPriceSuggestion(data);
+      } else {
+        setNewProdPriceSuggestion(data);
+      }
+    } catch (err: any) {
+      console.error('Price recommendation error:', err);
+      setPriceSuggestError(err.message || 'Error occurred while contacting the Gemini Pricing Advisor.');
+    } finally {
+      setIsSuggestingPrice(false);
     }
   };
 
@@ -965,20 +1012,32 @@ export const AdminPanel: React.FC = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div>
-                  <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 mb-1">Pricing ({settings.baseCurrency})</label>
+                  <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 mb-1">Achat Cost (TTC)</label>
+                  <input
+                    type="number"
+                    min={0.01}
+                    step="any"
+                    value={newProdPurchasePrice}
+                    onChange={(e) => setNewProdPurchasePrice(e.target.value === '' ? '' : Number(e.target.value))}
+                    placeholder="e.g. 15.00"
+                    className="w-full rounded bg-slate-50 border border-slate-200 p-2 text-xs font-mono outline-none focus:bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 mb-1">Pricing (Retail TTC)</label>
                   <input
                     type="number"
                     required
                     min={1}
                     value={newProdPrice || ''}
                     onChange={(e) => setNewProdPrice(Number(e.target.value))}
-                    className="w-full rounded bg-slate-50 border border-slate-200 p-2 text-xs font-mono outline-none focus:bg-white"
+                    className="w-full rounded bg-slate-50 border border-slate-200 p-2 text-xs font-mono outline-none focus:bg-white font-bold"
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 mb-1">Original Cutoff ({settings.baseCurrency})</label>
+                  <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 mb-1">Original Cutoff</label>
                   <input
                     type="number"
                     value={newProdOrigPrice || ''}
@@ -998,6 +1057,89 @@ export const AdminPanel: React.FC = () => {
                     className="w-full rounded bg-slate-50 border border-slate-200 p-2 text-xs font-mono outline-none focus:bg-white"
                   />
                 </div>
+              </div>
+
+              {/* AI Price Recommendation Interface for Creation Form */}
+              <div className="border border-emerald-100 bg-emerald-50/10 rounded-xl p-3.5 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-xs font-bold text-emerald-950 uppercase tracking-wide">💡 Gemini Price Advisor</span>
+                    <span className="text-[9px] font-mono font-extrabold bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded uppercase tracking-wider text-center">Strategic Margin</span>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={isSuggestingPrice || !newProdPurchasePrice || !newProdName}
+                    onClick={() => requestPriceRecommendation(
+                      newProdName,
+                      isCustomCategory ? customCategoryName : newProdCategory,
+                      newProdDesc,
+                      Number(newProdPurchasePrice),
+                      false
+                    )}
+                    className="flex items-center space-x-1 px-3 py-1 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-200 disabled:text-slate-400 text-white text-[10px] font-bold rounded-lg transition-all cursor-pointer shadow-xs"
+                  >
+                    {isSuggestingPrice ? (
+                      <>
+                        <span className="h-2.5 w-2.5 border-2 border-emerald-100 border-t-white rounded-full animate-spin mr-1" />
+                        <span>Analyzing Margins...</span>
+                      </>
+                    ) : (
+                      <span>Consult Price Engine</span>
+                    )}
+                  </button>
+                </div>
+
+                {(!newProdPurchasePrice || !newProdName) && (
+                  <p className="text-[10px] text-slate-400 italic">
+                    Type in the Product Name and Achat Price (Cost TTC) to run the strategic price optimizer.
+                  </p>
+                )}
+
+                {priceSuggestError && (
+                  <p className="text-[10px] font-semibold text-red-500 bg-red-50/50 border border-red-100 rounded-lg p-2">
+                    ⚠️ {priceSuggestError}
+                  </p>
+                )}
+
+                {newProdPriceSuggestion && (
+                  <div className="bg-white/80 border border-emerald-100 rounded-lg p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <span className="block text-[8.5px] font-mono text-slate-400 uppercase tracking-wider">Suggested Retail Price</span>
+                        <span className="text-sm font-bold text-emerald-600 font-mono">
+                          {settings.baseCurrency} {newProdPriceSuggestion.recommendedPrice.toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="flex space-x-3 text-right">
+                        <div>
+                          <span className="block text-[8.5px] font-mono text-slate-400 uppercase tracking-wider">Markup Coeff.</span>
+                          <span className="text-xs font-semibold text-slate-700 font-mono">
+                            {newProdPriceSuggestion.markupPercent.toFixed(1)}% Markup
+                          </span>
+                        </div>
+                        <div>
+                          <span className="block text-[8.5px] font-mono text-slate-400 uppercase tracking-wider">Profit Margin</span>
+                          <span className="text-xs font-semibold text-indigo-600 font-mono">
+                            {newProdPriceSuggestion.marginPercent.toFixed(1)}% Margin
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <p className="text-[10.5px] text-slate-600 leading-relaxed italic bg-slate-50 p-2 rounded border border-slate-100">
+                      &ldquo;{newProdPriceSuggestion.explanation}&rdquo;
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNewProdPrice(newProdPriceSuggestion.recommendedPrice);
+                        setNewProdOrigPrice(0);
+                      }}
+                      className="w-full text-center py-1 bg-slate-900 text-white text-[10px] font-bold tracking-wider uppercase hover:bg-emerald-650 rounded-md transition-colors cursor-pointer"
+                    >
+                      Apply Recommended Price
+                    </button>
+                  </div>
+                )}
               </div>
 
               <div>
@@ -1145,27 +1287,137 @@ export const AdminPanel: React.FC = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div>
-                  <label className="block text-[10px] font-mono font-bold uppercase tracking-wider mb-1 text-slate-400">Unit Pricing</label>
+                  <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 mb-1">Achat Price (Cost TTC)</label>
+                  <input
+                    type="number"
+                    min={0.01}
+                    step="any"
+                    value={editingProduct.purchasePrice || ''}
+                    onChange={(e) => setEditingProduct({ ...editingProduct, purchasePrice: e.target.value === '' ? undefined : Number(e.target.value) })}
+                    placeholder="e.g. 15.00"
+                    className="w-full rounded bg-slate-50 border border-slate-200 p-2 text-xs font-mono outline-none focus:bg-white focus:border-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 mb-1">Pricing (Retail TTC)</label>
                   <input
                     type="number"
                     required
+                    min={1}
                     value={editingProduct.price}
                     onChange={(e) => setEditingProduct({ ...editingProduct, price: Number(e.target.value) })}
-                    className="w-full rounded bg-slate-50 border border-slate-200 p-2 text-xs font-mono focus:bg-white outline-none"
+                    className="w-full rounded bg-slate-50 border border-slate-200 p-2 text-xs font-mono outline-none focus:bg-white font-bold"
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-mono font-bold uppercase tracking-wider mb-1 text-slate-400">Stock Cap</label>
+                  <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 mb-1">Original Cutoff</label>
+                  <input
+                    type="number"
+                    value={editingProduct.originalPrice || ''}
+                    onChange={(e) => setEditingProduct({ ...editingProduct, originalPrice: e.target.value === '' ? undefined : Number(e.target.value) })}
+                    placeholder="Optional"
+                    className="w-full rounded bg-slate-50 border border-slate-200 p-2 text-xs font-mono outline-none focus:bg-white font-semibold"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 mb-1">Stock Vol.</label>
                   <input
                     type="number"
                     required
+                    min={0}
                     value={editingProduct.stock}
                     onChange={(e) => setEditingProduct({ ...editingProduct, stock: Number(e.target.value) })}
-                    className="w-full rounded bg-slate-50 border border-slate-200 p-2 text-xs font-mono focus:bg-white outline-none"
+                    className="w-full rounded bg-slate-50 border border-slate-200 p-2 text-xs font-mono outline-none focus:bg-white"
                   />
                 </div>
+              </div>
+
+              {/* AI Price Recommendation Interface for Edit form */}
+              <div className="border border-emerald-100 bg-emerald-50/10 rounded-xl p-3.5 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-xs font-bold text-emerald-950 uppercase tracking-wide">💡 Gemini Price Advisor</span>
+                    <span className="text-[9px] font-mono font-extrabold bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded uppercase tracking-wider text-center">Strategic Margin</span>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={isSuggestingPrice || !editingProduct.purchasePrice || !editingProduct.name}
+                    onClick={() => requestPriceRecommendation(
+                      editingProduct.name,
+                      editingProduct.category,
+                      editingProduct.description || '',
+                      Number(editingProduct.purchasePrice),
+                      true
+                    )}
+                    className="flex items-center space-x-1 px-3 py-1 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-200 disabled:text-slate-400 text-white text-[10px] font-bold rounded-lg transition-all cursor-pointer shadow-xs"
+                  >
+                    {isSuggestingPrice ? (
+                      <>
+                        <span className="h-2.5 w-2.5 border-2 border-emerald-100 border-t-white rounded-full animate-spin mr-1" />
+                        <span>Analyzing Margins...</span>
+                      </>
+                    ) : (
+                      <span>Consult Price Engine</span>
+                    )}
+                  </button>
+                </div>
+
+                {(!editingProduct.purchasePrice || !editingProduct.name) && (
+                  <p className="text-[10px] text-slate-400 italic">
+                    Type in the Product Name and Achat Price (Cost TTC) to run the strategic price optimizer.
+                  </p>
+                )}
+
+                {priceSuggestError && (
+                  <p className="text-[10px] font-semibold text-red-500 bg-red-50/50 border border-red-100 rounded-lg p-2">
+                    ⚠️ {priceSuggestError}
+                  </p>
+                )}
+
+                {editProdPriceSuggestion && (
+                  <div className="bg-white/80 border border-emerald-100 rounded-lg p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <span className="block text-[8.5px] font-mono text-slate-400 uppercase tracking-wider">Suggested Retail Price</span>
+                        <span className="text-sm font-bold text-emerald-600 font-mono">
+                          {settings.baseCurrency} {editProdPriceSuggestion.recommendedPrice.toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="flex space-x-3 text-right">
+                        <div>
+                          <span className="block text-[8.5px] font-mono text-slate-400 uppercase tracking-wider">Markup Coeff.</span>
+                          <span className="text-xs font-semibold text-slate-700 font-mono">
+                            {editProdPriceSuggestion.markupPercent.toFixed(1)}% Markup
+                          </span>
+                        </div>
+                        <div>
+                          <span className="block text-[8.5px] font-mono text-slate-400 uppercase tracking-wider">Profit Margin</span>
+                          <span className="text-xs font-semibold text-indigo-600 font-mono">
+                            {editProdPriceSuggestion.marginPercent.toFixed(1)}% Margin
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <p className="text-[10.5px] text-slate-600 leading-relaxed italic bg-slate-50 p-2 rounded border border-slate-100">
+                      &ldquo;{editProdPriceSuggestion.explanation}&rdquo;
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingProduct({
+                          ...editingProduct,
+                          price: editProdPriceSuggestion.recommendedPrice,
+                          originalPrice: undefined
+                        });
+                      }}
+                      className="w-full text-center py-1 bg-slate-900 text-white text-[10px] font-bold tracking-wider uppercase hover:bg-emerald-650 rounded-md transition-colors cursor-pointer"
+                    >
+                      Apply Recommended Price
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Product Image URL with Premium Thumbnail Preview */}
@@ -1298,7 +1550,8 @@ export const AdminPanel: React.FC = () => {
                 <tr>
                   <th className="px-6 py-4">Item Spec</th>
                   <th className="px-4 py-4">Category</th>
-                  <th className="px-4 py-4">Price</th>
+                  <th className="px-4 py-4">Achat Cost</th>
+                  <th className="px-4 py-4 font-semibold text-emerald-600">Retail / Markup</th>
                   <th className="px-4 py-4">In-Stock Register</th>
                   <th className="px-6 py-4 text-right">Direct Directives</th>
                 </tr>
@@ -1316,7 +1569,17 @@ export const AdminPanel: React.FC = () => {
                         </div>
                       </td>
                       <td className="px-4 py-3 text-slate-500 font-medium">{p.category}</td>
-                      <td className="px-4 py-3 font-mono font-bold text-slate-900">{settings.baseCurrency}{p.price.toFixed(2)}</td>
+                      <td className="px-4 py-3 font-mono font-medium text-slate-500">
+                        {p.purchasePrice !== undefined ? `${settings.baseCurrency}${p.purchasePrice.toFixed(2)}` : '—'}
+                      </td>
+                      <td className="px-4 py-3 font-mono text-slate-900 leading-tight">
+                        <div className="font-bold">{settings.baseCurrency}{p.price.toFixed(2)}</div>
+                        {p.purchasePrice !== undefined && p.purchasePrice > 0 && (
+                          <div className="text-[10px] text-emerald-600 font-semibold font-mono">
+                            +{(((p.price - p.purchasePrice) / p.purchasePrice) * 100).toFixed(0)}% markup
+                          </div>
+                        )}
+                      </td>
                       <td className="px-4 py-3">
                         <span className={`inline-block font-mono font-bold ${p.stock <= 5 ? 'text-rose-500' : 'text-slate-700'}`}>
                           {p.stock} Units

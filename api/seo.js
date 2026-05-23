@@ -42,7 +42,17 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { productName, description, category } = req.body || {};
+    let body = req.body;
+    if (typeof body === 'string') {
+      try {
+        body = JSON.parse(body);
+      } catch (e) {
+        res.setHeader('Content-Type', 'application/json');
+        return res.status(400).json({ error: 'Invalid JSON body string' });
+      }
+    }
+
+    const { productName, description, category } = body || {};
 
     if (!productName) {
       res.setHeader('Content-Type', 'application/json');

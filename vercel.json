@@ -2,6 +2,18 @@
   "cleanUrls": true,
   "rewrites": [
     {
+      "source": "/api/store",
+      "destination": "/api/store.js"
+    },
+    {
+      "source": "/api/seo",
+      "destination": "/api/seo.js"
+    },
+    {
+      "source": "/api/price-recommend",
+      "destination": "/api/price-recommend.js"
+    },
+    {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }

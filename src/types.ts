@@ -19,6 +19,7 @@ export interface Product {
   seoTitle?: string;
   seoDescription?: string;
   seoKeywords?: string;
+  purchasePrice?: number;
 }
 
 export interface CartItem {

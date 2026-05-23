@@ -38,6 +38,17 @@ app.all('/api/seo', async (req, res) => {
   }
 });
 
+// Gemini AI Price Recommendation endpoint
+import priceRecommendHandler from './api/price-recommend.js';
+app.all('/api/price-recommend', async (req, res) => {
+  try {
+    await priceRecommendHandler(req, res);
+  } catch (err) {
+    console.error('Express Price Advisor handler error:', err);
+    res.status(500).json({ error: 'Internal Server Error', details: err.message });
+  }
+});
+
 // Dynamic XML Sitemap endpoint
 import sitemapHandler from './api/sitemap.js';
 app.all('/sitemap.xml', async (req, res) => {
