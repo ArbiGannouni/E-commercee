@@ -26,6 +26,20 @@ const isVideoUrl = (url: string | undefined): boolean => {
   );
 };
 
+const getVideoThumbnail = (url: string | undefined): string | null => {
+  if (!url) return null;
+  const u = url.trim();
+  const ytMatch = u.match(/^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/);
+  if (ytMatch && ytMatch[2] && ytMatch[2].length === 11) {
+    return `https://img.youtube.com/vi/${ytMatch[2]}/mqdefault.jpg`;
+  }
+  const vimeoMatch = u.match(/vimeo\.com\/(?:channels\/(?:\w+\/)?|groups\/([^\/]*)\/videos\/|album\/(\d+)\/video\/|video\/|)(\d+)(?:$|\/|\?)/);
+  if (vimeoMatch && vimeoMatch[3]) {
+    return `https://vumbnail.com/${vimeoMatch[3]}.jpg`;
+  }
+  return null;
+};
+
 interface ProductSkeletonProps {
   themeType: string;
   websiteTheme?: string;
@@ -1677,9 +1691,18 @@ export const ShopLayout: React.FC = () => {
                             }`}
                           >
                             {isThumbnailVideo ? (
-                              <div className="h-full w-full bg-slate-950 flex flex-col items-center justify-center text-white">
-                                <Play className="h-3 w-3 fill-emerald-400 text-emerald-400" />
-                                <span className="text-[5.5px] font-mono font-bold uppercase mt-0.5 tracking-tighter">VIDEO</span>
+                              <div className="h-full w-full relative bg-slate-950 flex flex-col items-center justify-center text-white">
+                                {getVideoThumbnail(imgUrl) ? (
+                                  <img
+                                    src={getVideoThumbnail(imgUrl)!}
+                                    alt="Video Thumbnail"
+                                    className="absolute inset-0 h-full w-full object-cover opacity-50 transition-all group-hover:opacity-60"
+                                  />
+                                ) : null}
+                                <div className="relative z-10 flex flex-col items-center">
+                                  <Play className="h-3 w-3 fill-emerald-400 text-emerald-400 drop-shadow-sm" />
+                                  <span className="text-[5.5px] font-mono font-bold uppercase mt-0.5 tracking-tighter bg-black/50 px-1 py-0.2 rounded-sm select-none">VIDEO</span>
+                                </div>
                               </div>
                             ) : (
                               <img

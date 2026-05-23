@@ -60,6 +60,20 @@ const isVideoUrl = (url: string | undefined): boolean => {
   );
 };
 
+const getVideoThumbnail = (url: string | undefined): string | null => {
+  if (!url) return null;
+  const u = url.trim();
+  const ytMatch = u.match(/^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/);
+  if (ytMatch && ytMatch[2] && ytMatch[2].length === 11) {
+    return `https://img.youtube.com/vi/${ytMatch[2]}/mqdefault.jpg`;
+  }
+  const vimeoMatch = u.match(/vimeo\.com\/(?:channels\/(?:\w+\/)?|groups\/([^\/]*)\/videos\/|album\/(\d+)\/video\/|video\/|)(\d+)(?:$|\/|\?)/);
+  if (vimeoMatch && vimeoMatch[3]) {
+    return `https://vumbnail.com/${vimeoMatch[3]}.jpg`;
+  }
+  return null;
+};
+
 export const AdminPanel: React.FC = () => {
   const {
     products,
@@ -197,6 +211,7 @@ export const AdminPanel: React.FC = () => {
 
   // CRUD item states
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   
   // New Product Schema Form State
@@ -236,6 +251,122 @@ export const AdminPanel: React.FC = () => {
   const handleImageUpload = (files: FileList | null, isEditing: boolean) => {
     if (!files) return;
     Array.from(files).forEach((file) => {
+      // Check if file is a video (MP4, etc.)
+      if (file.type.startsWith('video/') || file.name.toLowerCase().endsWith('.mp4') || file.name.toLowerCase().endsWith('.webm')) {
+        const statusSetter = isEditing ? setEditUploadStatus : setUploadStatus;
+        statusSetter(`Processing video "${file.name}"... Extracting frame from first second.`);
+
+        const video = document.createElement('video');
+        const objectUrl = URL.createObjectURL(file);
+        
+        video.src = objectUrl;
+        video.muted = true;
+        video.playsInline = true;
+        video.crossOrigin = 'anonymous';
+
+        // Read video file to Base64 in parallel for the actual playback media item
+        const reader = new FileReader();
+        let base64VideoUrl = '';
+
+        reader.onload = (e) => {
+          base64VideoUrl = e.target?.result as string;
+          checkVideoProcessingComplete();
+        };
+        reader.onerror = () => {
+          statusSetter(`❌ Error reading video file: ${file.name}`);
+        };
+        reader.readAsDataURL(file);
+
+        let thumbnailDataUrl = '';
+        let videoLoaded = false;
+
+        const checkVideoProcessingComplete = () => {
+          if (thumbnailDataUrl && base64VideoUrl) {
+            const successMsg = `Successfully processed video "${file.name}". Automatically extracted cover thumbnail from the first second of video!`;
+            statusSetter(successMsg);
+
+            if (isEditing) {
+              setEditingProduct(prev => {
+                if (!prev) return prev;
+                const currentImages = prev.images || [];
+                const updatedImages = currentImages.includes(thumbnailDataUrl)
+                  ? currentImages
+                  : [...currentImages, thumbnailDataUrl];
+
+                return {
+                  ...prev,
+                  image: prev.image || thumbnailDataUrl,
+                  images: updatedImages,
+                  videoUrl: base64VideoUrl
+                };
+              });
+            } else {
+              setNewProdImage(prevMain => {
+                const finalMain = prevMain ? prevMain : thumbnailDataUrl;
+                setNewProdImages(prevSub => {
+                  const currentList = prevSub 
+                    ? prevSub.split(/[\n,]/).map(x => x.trim()).filter(Boolean)
+                    : [];
+                  if (!currentList.includes(thumbnailDataUrl)) {
+                    return [...currentList, thumbnailDataUrl].join('\n');
+                  }
+                  return prevSub;
+                });
+                return finalMain;
+              });
+              setNewProdVideoUrl(base64VideoUrl);
+            }
+          }
+        };
+
+        video.onloadeddata = () => {
+          // Seek to the first second (1.0)
+          video.currentTime = 1.0;
+        };
+
+        video.onseeked = () => {
+          try {
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth || 640;
+            canvas.height = video.videoHeight || 360;
+
+            // Downscale to a crisp yet database-friendly maximum of 640px
+            const MAX_SIZE = 640;
+            if (canvas.width > MAX_SIZE || canvas.height > MAX_SIZE) {
+              if (canvas.width > canvas.height) {
+                canvas.height = Math.round((canvas.height * MAX_SIZE) / canvas.width);
+                canvas.width = MAX_SIZE;
+              } else {
+                canvas.width = Math.round((canvas.width * MAX_SIZE) / canvas.height);
+                canvas.height = MAX_SIZE;
+              }
+            }
+
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+              thumbnailDataUrl = canvas.toDataURL('image/jpeg', 0.5);
+            } else {
+              thumbnailDataUrl = 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=800&auto=format&fit=crop&q=80';
+            }
+            
+            URL.revokeObjectURL(objectUrl);
+            checkVideoProcessingComplete();
+          } catch (err: any) {
+            URL.revokeObjectURL(objectUrl);
+            statusSetter(`⚠️ Auto-thumbnail fallback triggered: ${err?.message || 'rendering canvas'}`);
+            thumbnailDataUrl = 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=800&auto=format&fit=crop&q=80';
+            checkVideoProcessingComplete();
+          }
+        };
+
+        video.onerror = () => {
+          URL.revokeObjectURL(objectUrl);
+          statusSetter(`❌ Unable to extract frame from video "${file.name}". Please ensure it is a valid format.`);
+        };
+        return;
+      }
+
       if (!file.type.startsWith('image/')) return;
       const reader = new FileReader();
       reader.onload = (event) => {
@@ -1357,15 +1488,15 @@ export const AdminPanel: React.FC = () => {
                     id="create-photo-uploader"
                     type="file"
                     multiple
-                    accept="image/*"
+                    accept="image/*,video/mp4,video/x-m4v,video/*"
                     className="hidden"
                     onChange={(e) => handleImageUpload(e.target.files, false)}
                   />
                   <Upload className="h-5 w-5 mx-auto text-slate-400 mb-1" />
                   <p className="text-[11px] text-slate-600 font-medium">
-                    Drag & Drop multiple images here, or <span className="text-indigo-600 font-bold">browse files</span>
+                    Drag & Drop multiple images/videos here, or <span className="text-indigo-600 font-bold">browse files</span>
                   </p>
-                  <p className="text-[9px] text-slate-400 mt-0.5">Supports PNG, JPG, WEBP formats (Auto-compressed for high speed)</p>
+                  <p className="text-[9px] text-slate-400 mt-0.5">Supports PNG, JPG, WEBP & MP4 Video (Auto-extracts first frame thumbnail)</p>
                 </div>
 
                 {uploadStatus && (
@@ -1493,12 +1624,21 @@ export const AdminPanel: React.FC = () => {
                           return (
                             <div key={idx} className="relative group aspect-square rounded-xl border border-slate-200 overflow-hidden bg-slate-100 shadow-sm transition-all hover:shadow-md">
                               {isVid ? (
-                                <div className="h-full w-full bg-slate-900 flex flex-col items-center justify-center text-white p-1">
-                                  <svg className="h-4 w-4 text-emerald-400" fill="currentColor" viewBox="0 0 20 20">
-                                    <path d="M2 6a2 2 0 012-2h12a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
-                                    <path d="M14 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                                  </svg>
-                                  <span className="text-[7.5px] font-mono text-center truncate w-full mt-1 px-1 text-slate-300 font-bold uppercase tracking-wider">Video</span>
+                                <div className="h-full w-full relative bg-slate-900 flex flex-col items-center justify-center text-white">
+                                  {getVideoThumbnail(img) ? (
+                                    <img
+                                      src={getVideoThumbnail(img)!}
+                                      alt="Video Thumbnail"
+                                      className="absolute inset-0 h-full w-full object-cover opacity-60"
+                                    />
+                                  ) : null}
+                                  <div className="relative z-10 flex flex-col items-center justify-center p-1 text-center">
+                                    <svg className="h-4 w-4 text-emerald-450 drop-shadow" fill="currentColor" viewBox="0 0 20 20">
+                                      <path d="M2 6a2 2 0 012-2h12a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
+                                      <path d="M14 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                    </svg>
+                                    <span className="text-[7.5px] font-mono text-center truncate w-full mt-1 px-1 text-slate-100 font-extrabold uppercase tracking-wider bg-black/55 rounded">Video</span>
+                                  </div>
                                 </div>
                               ) : (
                                 <img
@@ -1633,6 +1773,21 @@ export const AdminPanel: React.FC = () => {
                   placeholder="Paste YouTube link / embedded URL, or direct MP4 stream URL..."
                   className="w-full rounded bg-slate-50 border border-slate-200 p-2 text-xs outline-none focus:bg-white"
                 />
+                {getVideoThumbnail(newProdVideoUrl) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const thumb = getVideoThumbnail(newProdVideoUrl);
+                      if (thumb) {
+                        setNewProdImage(thumb);
+                        alert("First image of video product extracted as main cover image successfully!");
+                      }
+                    }}
+                    className="mt-1.5 flex items-center space-x-1.5 text-[10px] font-mono font-extrabold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-2.5 py-1 rounded transition-all cursor-pointer"
+                  >
+                    <span>📸 Add First Image of Video Product (Extract Thumbnail)</span>
+                  </button>
+                )}
               </div>
 
               <div>
@@ -1949,15 +2104,15 @@ export const AdminPanel: React.FC = () => {
                       id="edit-photo-uploader"
                       type="file"
                       multiple
-                      accept="image/*"
+                      accept="image/*,video/mp4,video/x-m4v,video/*"
                       className="hidden"
                       onChange={(e) => handleImageUpload(e.target.files, true)}
                     />
                     <Upload className="h-5 w-5 mx-auto text-slate-400 mb-1" />
                     <p className="text-[11px] text-slate-600 font-medium">
-                      Drag & Drop multiple images here, or <span className="text-indigo-600 font-bold">browse files</span>
+                      Drag & Drop multiple images/videos here, or <span className="text-indigo-600 font-bold">browse files</span>
                     </p>
-                    <p className="text-[9px] text-slate-400 mt-0.5">Supports PNG, JPG, WEBP formats (Auto-compressed for high speed)</p>
+                    <p className="text-[9px] text-slate-400 mt-0.5">Supports PNG, JPG, WEBP & MP4 Video (Auto-extracts first frame thumbnail)</p>
                   </div>
 
                   {editUploadStatus && (
@@ -2085,12 +2240,21 @@ export const AdminPanel: React.FC = () => {
                             return (
                               <div key={idx} className="relative group aspect-square rounded-xl border border-slate-200 overflow-hidden bg-slate-100 shadow-sm transition-all hover:shadow-md">
                                 {isVid ? (
-                                  <div className="h-full w-full bg-slate-900 flex flex-col items-center justify-center text-white p-1">
-                                    <svg className="h-4 w-4 text-emerald-400" fill="currentColor" viewBox="0 0 20 20">
-                                      <path d="M2 6a2 2 0 012-2h12a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
-                                      <path d="M14 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                                    </svg>
-                                    <span className="text-[7.5px] font-mono text-center truncate w-full mt-1 px-1 text-slate-300 font-bold uppercase tracking-wider">Video</span>
+                                  <div className="h-full w-full relative bg-slate-900 flex flex-col items-center justify-center text-white">
+                                    {getVideoThumbnail(img) ? (
+                                      <img
+                                        src={getVideoThumbnail(img)!}
+                                        alt="Video Thumbnail"
+                                        className="absolute inset-0 h-full w-full object-cover opacity-60"
+                                      />
+                                    ) : null}
+                                    <div className="relative z-10 flex flex-col items-center justify-center p-1 text-center font-bold">
+                                      <svg className="h-4 w-4 text-emerald-450 drop-shadow" fill="currentColor" viewBox="0 0 20 20">
+                                        <path d="M2 6a2 2 0 012-2h12a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
+                                        <path d="M14 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                      </svg>
+                                      <span className="text-[7.5px] font-mono text-center truncate w-full mt-1 px-1 text-slate-100 font-extrabold uppercase tracking-wider bg-black/55 rounded">Video</span>
+                                    </div>
                                   </div>
                                 ) : (
                                   <img
@@ -2239,8 +2403,26 @@ export const AdminPanel: React.FC = () => {
                     value={editingProduct.videoUrl || ''}
                     onChange={(e) => setEditingProduct({ ...editingProduct, videoUrl: e.target.value })}
                     placeholder="Paste YouTube link / embedded URL, or direct MP4 stream URL..."
-                    className="w-full rounded bg-slate-50 border border-slate-200 p-2 text-xs outline-none focus:bg-white text-slate-850 font-mono text-slate-800"
+                    className="w-full rounded bg-slate-50 border border-slate-200 p-2 text-xs outline-none focus:bg-white text-slate-855 font-mono text-slate-800"
                   />
+                  {getVideoThumbnail(editingProduct.videoUrl) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const thumb = getVideoThumbnail(editingProduct.videoUrl);
+                        if (thumb) {
+                          setEditingProduct({
+                            ...editingProduct,
+                            image: thumb
+                          });
+                          alert("First image of video product extracted as main cover image successfully!");
+                        }
+                      }}
+                      className="mt-1.5 flex items-center space-x-1.5 text-[10px] font-mono font-extrabold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-2.5 py-1 rounded transition-all cursor-pointer"
+                    >
+                      <span>📸 Add First Image of Video Product (Extract Thumbnail)</span>
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -2399,19 +2581,41 @@ export const AdminPanel: React.FC = () => {
                         >
                           Modify
                         </button>
-                        <button
-                          onClick={() => {
-                            if (checkPermission('delete')) {
-                              if (confirm('Delete item from catalogue register completely?')) {
-                                deleteProduct(p.id);
+                        {deleteConfirmId === p.id ? (
+                          <span className="inline-flex items-center space-x-1">
+                            <button
+                              onClick={() => {
+                                if (checkPermission('delete')) {
+                                  deleteProduct(p.id);
+                                  setDeleteConfirmId(null);
+                                }
+                              }}
+                              className="p-1 px-2.5 bg-rose-600 text-white hover:bg-rose-700 font-bold transition-all rounded-lg text-xs animate-pulse"
+                              title="Confirm catalog deletion"
+                            >
+                              Confirm
+                            </button>
+                            <button
+                              onClick={() => setDeleteConfirmId(null)}
+                              className="p-1 px-1.5 border border-slate-200 text-slate-400 hover:bg-slate-50 transition-all rounded-lg text-xs"
+                              title="Cancel delete action"
+                            >
+                              Cancel
+                            </button>
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => {
+                              if (checkPermission('delete')) {
+                                setDeleteConfirmId(p.id);
                               }
-                            }
-                          }}
-                          className="p-1 px-2.5 border text-rose-600 border-rose-100 hover:bg-rose-50 transition-all rounded-lg text-xs"
-                          title="Delete product"
-                        >
-                          Purge
-                        </button>
+                            }}
+                            className="p-1 px-2.5 border text-rose-600 border-rose-100 hover:bg-rose-50 transition-all rounded-lg text-xs"
+                            title="Delete product"
+                          >
+                            Purge
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -5154,6 +5358,54 @@ export const AdminPanel: React.FC = () => {
                   </p>
                 </div>
 
+                {/* Topic 3: Tracking Domain */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500">
+                      Custom Tracking Domain
+                    </label>
+                  </div>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Globe className="h-4 w-4 text-indigo-550" />
+                    </div>
+                    <input
+                      type="text"
+                      className="w-full pl-9 rounded-lg border border-slate-200 bg-slate-50 py-2.5 px-3 text-xs font-mono outline-none focus:bg-white focus:border-indigo-500 text-slate-800"
+                      value={settings.trackingDomain || ''}
+                      onChange={(e) => updateSettings({ trackingDomain: e.target.value })}
+                      placeholder="e.g. aetherobjects.co"
+                    />
+                  </div>
+                  <p className="text-[10px] leading-relaxed text-slate-400">
+                    Target tracking hostname to bind standard events, cookies, and pixel triggers. Defaults to <code className="bg-slate-100 px-1 py-0.5 rounded font-mono text-[9px]">aetherobjects.co</code>.
+                  </p>
+                </div>
+
+                {/* Topic 4: SSL Protocol */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500">
+                      SSL Protocol Certification
+                    </label>
+                  </div>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Lock className="h-4 w-4 text-emerald-500" />
+                    </div>
+                    <input
+                      type="text"
+                      className="w-full pl-9 rounded-lg border border-slate-200 bg-slate-50 py-2.5 px-3 text-xs font-mono outline-none focus:bg-white focus:border-indigo-500 text-slate-800"
+                      value={settings.sslProtocol || ''}
+                      onChange={(e) => updateSettings({ sslProtocol: e.target.value })}
+                      placeholder="e.g. TLS_1.3_ENCRYPTED"
+                    />
+                  </div>
+                  <p className="text-[10px] leading-relaxed text-slate-400">
+                    Secures client telemetry data transmissions under specific layer protocols. Defaults to <code className="bg-slate-100 px-1 py-0.5 rounded font-mono text-[9px]">TLS_1.3_ENCRYPTED</code>.
+                  </p>
+                </div>
+
                 <div className="bg-slate-50 rounded-xl border border-slate-150 p-4 space-y-2 text-[10.5px] text-slate-500">
                   <span className="font-mono font-bold text-[9px] uppercase text-indigo-700 bg-indigo-50/50 border border-indigo-100 px-2 py-0.5 rounded">
                     Real-time Synchronization Note
@@ -5192,11 +5444,11 @@ export const AdminPanel: React.FC = () => {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-450">TRACKING DOMAIN:</span>
-                  <span className="text-slate-300">aetherobjects.co</span>
+                  <span className="text-slate-300 font-bold">{settings.trackingDomain || 'aetherobjects.co'}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-450">SSL PROTOCOL:</span>
-                  <span className="text-teal-400 font-bold">TLS_1.3_ENCRYPTED</span>
+                  <span className="text-teal-400 font-bold">{settings.sslProtocol || 'TLS_1.3_ENCRYPTED'}</span>
                 </div>
               </div>
 

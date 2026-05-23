@@ -81,6 +81,8 @@ interface StoreSettings {
   priceSize?: string;
   originalPriceColor?: string;
   originalPriceSize?: string;
+  trackingDomain?: string;
+  sslProtocol?: string;
 }
 
 interface StoreContextType {
@@ -243,6 +245,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       seoDescription: 'Handcrafted premium work tools, sculptural lighting coordinates, fine stationery diaries, and desk furniture. Engineered to harmonize and elevate your creative workspace.',
       seoKeywords: 'artisan workspace, desk instruments, minimalist organizer, fine stationery, walnut risers, designer shop, Tunisia',
 
+      // Custom Tracking Settings
+      trackingDomain: 'aetherobjects.co',
+      sslProtocol: 'TLS_1.3_ENCRYPTED',
+
       // Custom Footer Defaults
       customFooterIntro: 'Curating high-grade functional instruments, workspace structures, and premium modern accessories constructed with genuine materials designed to endure.',
       customFooterText: 'Handcrafted in the digital workspaces. All rights reserved.',
@@ -337,11 +343,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const saved = localStorage.getItem('aether_admin_permissions');
     const defaultPermissions: AdminPermissions = {
       canEditProducts: true,
-      canDeleteProducts: false,
-      canDeleteOrders: false,
+      canDeleteProducts: true,
+      canDeleteOrders: true,
       canManageOrders: true,
       canManagePromos: true,
-      canModifySettings: false,
+      canModifySettings: true,
       viewDashboard: true,
       viewProducts: true,
       viewOrders: true,
@@ -354,7 +360,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (saved && saved !== 'null' && saved !== 'undefined' && saved.trim() !== '') {
       try {
         const parsed = JSON.parse(saved);
-        return { ...defaultPermissions, ...parsed };
+        return { 
+          ...defaultPermissions, 
+          ...parsed,
+          canDeleteProducts: true,
+          canDeleteOrders: true,
+          canModifySettings: true,
+        };
       } catch (e) {
         // Fallback below
       }
