@@ -32,19 +32,30 @@ async function parseRequestBody(req) {
       try {
         return JSON.parse(req.body);
       } catch (e) {
-        // Fall through to manual stream parsing
+        // Fall through
       }
     } else {
       return req.body;
     }
   }
 
+  // If req.on is not a function (mock/processed request under Vite/Vercel middlewares), return empty
+  if (!req || typeof req.on !== 'function') {
+    return {};
+  }
+
+  // Read raw request body stream with a 1-second safety freeze safeguard
   return new Promise((resolve) => {
     let bodyData = '';
+    const timeout = setTimeout(() => {
+      resolve({});
+    }, 1000);
+
     req.on('data', chunk => {
       bodyData += chunk;
     });
     req.on('end', () => {
+      clearTimeout(timeout);
       try {
         resolve(bodyData ? JSON.parse(bodyData) : {});
       } catch (e) {
@@ -52,6 +63,7 @@ async function parseRequestBody(req) {
       }
     });
     req.on('error', () => {
+      clearTimeout(timeout);
       resolve({});
     });
   });
