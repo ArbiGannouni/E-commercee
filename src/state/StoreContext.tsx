@@ -6,6 +6,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Product, CartItem, Order, Customer, PromoCode, OrderStatus, SimulatedEmail, UserRole, AdminPermissions, FooterFeature } from '../types';
 import { INITIAL_PRODUCTS, INITIAL_CUSTOMERS, INITIAL_ORDERS, INITIAL_PROMO_CODES } from '../data/mockProducts';
+import { getLocalizedProduct, getLocalizedCategory } from '../utils/productTranslations';
 
 interface StoreSettings {
   storeName: string;
@@ -13,6 +14,7 @@ interface StoreSettings {
   shippingRate: number; // e.g. 15
   baseCurrency: string; // e.g. '$'
   language?: 'en' | 'fr';
+  showLanguageSwitcher?: boolean;
   showHeroBanner?: boolean;
   bannerType?: string;
   bannerImage?: string;
@@ -74,6 +76,11 @@ interface StoreSettings {
   footerFeatures?: FooterFeature[];
   googleAnalyticsId?: string;
   metaApiKey?: string;
+  currencyPosition?: 'left' | 'right';
+  priceColor?: string;
+  priceSize?: string;
+  originalPriceColor?: string;
+  originalPriceSize?: string;
 }
 
 interface StoreContextType {
@@ -92,6 +99,7 @@ interface StoreContextType {
   trackingOrderId: string | null;
   loggedInAdmin: boolean;
   settings: StoreSettings;
+  formatPrice: (amount: number) => string;
   
   // Simulated Email alerts
   simulatedEmails: SimulatedEmail[];
@@ -194,6 +202,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       shippingRate: 15.00,
       baseCurrency: '$',
       language: 'en' as const,
+      showLanguageSwitcher: true,
       showHeroBanner: true,
       bannerType: 'classic-slate',
       bannerImage: 'https://images.unsplash.com/photo-1593642702821-c8da63116c2c?w=1600&q=80',
@@ -258,7 +267,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         { id: '4', title: 'Full Customer Care', desc: 'Available via live correspondence portals', icon: 'help-circle' }
       ],
       googleAnalyticsId: '',
-      metaApiKey: ''
+      metaApiKey: '',
+      currencyPosition: 'right' as const,
+      priceColor: 'text-indigo-600 font-bold',
+      priceSize: 'text-base',
+      originalPriceColor: 'text-slate-400 line-through font-normal',
+      originalPriceSize: 'text-xs'
     };
     if (saved) {
       try {
@@ -335,6 +349,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       viewPromos: true,
       viewEmails: true,
       viewSettings: true,
+      viewPermissions: true,
     };
     if (saved && saved !== 'null' && saved !== 'undefined' && saved.trim() !== '') {
       try {
@@ -666,7 +681,7 @@ Aether Automatons & Supply Bot`,
     }
     
     if (user.passwordHash !== pass) {
-      return { success: false, message: 'Invalid password credentials.', role: null };
+      return { success: false, message: 'Invalid email address or user not registered.', role: null };
     }
     
     if (user.role === 'admin' || user.role === 'super_admin') {
@@ -980,23 +995,73 @@ Aether Automatons & Supply Bot`,
     setOrders(prev => prev.map(ord => ord.id === orderId ? { ...ord, status } : ord));
   };
 
+  // Localized getters/derivations
+  const localizedProducts = React.useMemo(() => {
+    return products.map(p => getLocalizedProduct(p, settings.language));
+  }, [products, settings.language]);
+
+  const localizedCart = React.useMemo(() => {
+    return cart.map(item => ({
+      ...item,
+      product: getLocalizedProduct(item.product, settings.language)
+    }));
+  }, [cart, settings.language]);
+
+  const localizedActiveProductDetail = React.useMemo(() => {
+    return activeProductDetail ? getLocalizedProduct(activeProductDetail, settings.language) : null;
+  }, [activeProductDetail, settings.language]);
+
+  const localizedOrders = React.useMemo(() => {
+    return orders.map(order => ({
+      ...order,
+      items: order.items.map(item => {
+        const transProduct = products.find(p => p.id === item.productId);
+        const locProduct = transProduct ? getLocalizedProduct(transProduct, settings.language) : null;
+        return {
+          ...item,
+          productName: locProduct ? locProduct.name : item.productName
+        };
+      })
+    }));
+  }, [orders, products, settings.language]);
+
+  // Translate currentCategory state if it changes language
+  useEffect(() => {
+    if (!settings.language) return;
+    setCategory(prev => {
+      if (prev === 'All') return 'All';
+      return getLocalizedCategory(prev, settings.language);
+    });
+  }, [settings.language]);
+
+  const formatPrice = (amount: number) => {
+    const currency = settings.baseCurrency || '$';
+    const position = settings.currencyPosition || 'right';
+    const formattedAmount = (amount || 0).toFixed(2);
+    if (position === 'right') {
+      return `${formattedAmount} ${currency}`;
+    }
+    return `${currency}${formattedAmount}`;
+  };
+
   return (
     <StoreContext.Provider value={{
-      products,
-      cart,
-      orders,
+      products: localizedProducts,
+      cart: localizedCart,
+      orders: localizedOrders,
       customers,
       promoCodes,
       activePromo,
       currentView,
       currentCategory,
       searchKeyword,
-      activeProductDetail,
+      activeProductDetail: localizedActiveProductDetail,
       isCartOpen,
       isCheckoutOpen,
       trackingOrderId,
       loggedInAdmin,
       settings,
+      formatPrice,
       currentUser,
       currentAdminUser,
       adminPermissions,

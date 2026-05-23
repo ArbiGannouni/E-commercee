@@ -10,6 +10,8 @@ export interface Product {
   price: number;
   originalPrice?: number;
   image: string;
+  images?: string[];
+  videoUrl?: string;
   category: string;
   rating: number;
   ratingCount: number;
@@ -108,6 +110,7 @@ export interface AdminPermissions {
   viewPromos: boolean;
   viewEmails: boolean;
   viewSettings: boolean;
+  viewPermissions: boolean;
 }
 
 export interface FooterFeature {

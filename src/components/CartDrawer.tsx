@@ -19,7 +19,8 @@ export const CartDrawer: React.FC = () => {
     removePromoCode,
     activePromo,
     setView,
-    settings
+    settings,
+    formatPrice
   } = useStore();
 
   const t = getTranslation(settings.language);
@@ -154,7 +155,7 @@ export const CartDrawer: React.FC = () => {
                                 </span>
                               </div>
                               <span className="text-xs font-mono font-semibold text-slate-900">
-                                {settings.baseCurrency}{(item.product.price * item.quantity).toFixed(2)}
+                                {formatPrice(item.product.price * item.quantity)}
                               </span>
                             </div>
 
@@ -213,7 +214,7 @@ export const CartDrawer: React.FC = () => {
                   {!isFreeShipping && (
                     <div className="rounded-lg bg-amber-50 p-3 border border-amber-100 flex flex-col space-y-1.5 shadow-sm">
                       <div className="flex justify-between items-center text-[11px] text-amber-800 font-medium">
-                        <span>{settings.language === 'fr' ? `Ajoutez ${settings.baseCurrency}${(shippingThreshold - itemsTotal).toFixed(2)} pour la Livraison Gratuite` : `Spend ${settings.baseCurrency}${(shippingThreshold - itemsTotal).toFixed(2)} more for Free Shipping`}</span>
+                        <span>{settings.language === 'fr' ? `Ajoutez ${formatPrice(shippingThreshold - itemsTotal)} pour la Livraison Gratuite` : `Spend ${formatPrice(shippingThreshold - itemsTotal)} more for Free Shipping`}</span>
                         <span className="font-semibold">{Math.round((itemsTotal / shippingThreshold) * 100)}%</span>
                       </div>
                       <div className="w-full bg-amber-100 h-1.5 rounded-full overflow-hidden">
@@ -274,28 +275,28 @@ export const CartDrawer: React.FC = () => {
                   <div className="space-y-2 text-xs">
                     <div className="flex justify-between text-slate-500">
                       <span>{t.subtotal}</span>
-                      <span className="font-mono">{settings.baseCurrency}{subtotal.toFixed(2)}</span>
+                      <span className="font-mono">{formatPrice(subtotal)}</span>
                     </div>
                     {discount > 0 && (
                       <div className="flex justify-between text-emerald-600 font-semibold font-mono">
                         <span>{settings.language === 'fr' ? 'Remise' : 'Discount'} ({discountPercent}%)</span>
-                        <span>-{settings.baseCurrency}{discount.toFixed(2)}</span>
+                        <span>-{formatPrice(discount)}</span>
                       </div>
                     )}
                     <div className="flex justify-between text-slate-500">
                       <span>{t.shipping}</span>
                       <span className="font-semibold font-mono">
-                        {shipping === 0 ? (settings.language === 'fr' ? 'GRATUIT' : 'FREE') : `${settings.baseCurrency}${shipping.toFixed(2)}`}
+                        {shipping === 0 ? (settings.language === 'fr' ? 'GRATUIT' : 'FREE') : formatPrice(shipping)}
                       </span>
                     </div>
                     <div className="flex justify-between text-slate-500">
                       <span>{t.tax} ({settings.taxRate * 100}%)</span>
-                      <span className="font-mono">{settings.baseCurrency}{calculatedTax.toFixed(2)}</span>
+                      <span className="font-mono">{formatPrice(calculatedTax)}</span>
                     </div>
                     <div className="border-t border-slate-200 mt-2 pt-3 flex justify-between items-baseline text-slate-900">
                       <span className="font-bold text-sm">{settings.language === 'fr' ? 'Total Estimé' : 'Estimated Total'}</span>
                       <span className="font-mono text-lg font-bold text-indigo-600">
-                        {settings.baseCurrency}{grandTotal.toFixed(2)}
+                        {formatPrice(grandTotal)}
                       </span>
                     </div>
                   </div>

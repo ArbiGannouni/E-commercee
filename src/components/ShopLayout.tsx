@@ -6,7 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { useStore } from '../state/StoreContext';
 import { Product, Order, OrderStatus } from '../types';
-import { Star, SlidersHorizontal, ArrowLeft, ShieldAlert, Check, ShoppingCart, Clock, User, Calendar, MapPin, CreditCard, ChevronDown, ChevronUp, Package, Printer, ExternalLink, Sliders, MessageCircle, MessageSquare } from 'lucide-react';
+import { Star, SlidersHorizontal, ArrowLeft, ShieldAlert, Check, ShoppingCart, Clock, User, Calendar, MapPin, CreditCard, ChevronDown, ChevronUp, Package, Printer, ExternalLink, Sliders, MessageCircle, MessageSquare, Play, Film } from 'lucide-react';
 import { getTheme } from '../utils/theme';
 import { SpendingChart } from './SpendingChart';
 import { getTranslation } from '../utils/translations';
@@ -151,7 +151,8 @@ export const ShopLayout: React.FC = () => {
     setTrackingOrderId,
     orders,
     settings,
-    currentUser
+    currentUser,
+    formatPrice
   } = useStore();
 
   const [shopSection, setShopSection] = useState<'catalog' | 'orders'>('catalog');
@@ -162,6 +163,8 @@ export const ShopLayout: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [hoveredCardId, setHoveredCardId] = useState<string | null>(null);
   const [detailQuantity, setDetailQuantity] = useState(1);
+  const [selectedDetailImage, setSelectedDetailImage] = useState<string | null>(null);
+  const [viewingVideo, setViewingVideo] = useState(false);
   const [showNotification, setShowNotification] = useState(false);
 
   useEffect(() => {
@@ -169,6 +172,16 @@ export const ShopLayout: React.FC = () => {
       setShopSection('catalog');
     }
   }, [currentUser]);
+
+  useEffect(() => {
+    if (activeProductDetail) {
+      setSelectedDetailImage(activeProductDetail.image);
+      setViewingVideo(false);
+    } else {
+      setSelectedDetailImage(null);
+      setViewingVideo(false);
+    }
+  }, [activeProductDetail]);
 
   useEffect(() => {
     setIsLoading(true);
@@ -768,12 +781,12 @@ export const ShopLayout: React.FC = () => {
                     </div>
 
                     <div className="mt-2 flex items-baseline space-x-2 pt-2 border-t border-dashed border-slate-200">
-                      <span className="font-mono text-xs font-black text-slate-900 dark:text-slate-100">
-                        {settings.baseCurrency}{p.price.toFixed(2)}
+                      <span className={`${settings.priceColor || 'text-slate-900'} ${settings.priceSize || 'text-xs'}`}>
+                        {formatPrice(p.price)}
                       </span>
                       {hasPromoDiscount && (
-                        <span className="font-mono text-[10px] text-slate-400 line-through">
-                          {settings.baseCurrency}{p.originalPrice?.toFixed(2)}
+                        <span className={`${settings.originalPriceColor || 'text-slate-400 line-through'} ${settings.originalPriceSize || 'text-[10px]'}`}>
+                          {formatPrice(p.originalPrice || 0)}
                         </span>
                       )}
                     </div>
@@ -856,12 +869,12 @@ export const ShopLayout: React.FC = () => {
                     </div>
 
                     <div className="mt-3 flex items-baseline space-x-2 pt-2 border-t border-current/10">
-                      <span className="font-mono text-xs font-bold text-current">
-                        {settings.baseCurrency}{p.price.toFixed(2)}
+                      <span className={`${settings.priceColor || 'text-current'} ${settings.priceSize || 'text-xs'}`}>
+                        {formatPrice(p.price)}
                       </span>
                       {hasPromoDiscount && (
-                        <span className="font-mono text-[9px] text-current/40 line-through">
-                          {settings.baseCurrency}{p.originalPrice?.toFixed(2)}
+                        <span className={`${settings.originalPriceColor || 'text-current/40 line-through'} ${settings.originalPriceSize || 'text-[9.5px]'}`}>
+                          {formatPrice(p.originalPrice || 0)}
                         </span>
                       )}
                     </div>
@@ -947,12 +960,12 @@ export const ShopLayout: React.FC = () => {
 
                     <div className="mt-6 flex items-center justify-between pt-4 border-t border-current/10">
                       <div className="flex items-baseline space-x-2">
-                        <span className="font-mono text-sm font-black text-current">
-                          {settings.baseCurrency}{p.price.toFixed(2)}
+                        <span className={`${settings.priceColor || 'text-current'} ${settings.priceSize || 'text-sm'}`}>
+                          {formatPrice(p.price)}
                         </span>
                         {hasPromoDiscount && (
-                          <span className="font-mono text-xs text-current/40 line-through">
-                            {settings.baseCurrency}{p.originalPrice?.toFixed(2)}
+                          <span className={`${settings.originalPriceColor || 'text-current/40 line-through'} ${settings.originalPriceSize || 'text-xs'}`}>
+                            {formatPrice(p.originalPrice || 0)}
                           </span>
                         )}
                       </div>
@@ -1052,12 +1065,12 @@ export const ShopLayout: React.FC = () => {
                   </div>
 
                   <div className="mt-2.5 flex items-baseline space-x-2">
-                    <span className="font-mono text-xs font-bold text-current">
-                      {settings.baseCurrency}{p.price.toFixed(2)}
+                    <span className={`${settings.priceColor || 'text-current'} ${settings.priceSize || 'text-xs'}`}>
+                      {formatPrice(p.price)}
                     </span>
                     {hasPromoDiscount && (
-                      <span className="font-mono text-[10px] text-current/50 line-through">
-                        {settings.baseCurrency}{p.originalPrice?.toFixed(2)}
+                      <span className={`${settings.originalPriceColor || 'text-current/50 line-through'} ${settings.originalPriceSize || 'text-[10px]'}`}>
+                        {formatPrice(p.originalPrice || 0)}
                       </span>
                     )}
                   </div>
@@ -1548,16 +1561,114 @@ export const ShopLayout: React.FC = () => {
             </button>
 
             {/* Left media visual panel */}
-            <div className="w-full md:w-1/2 aspect-square md:aspect-auto bg-slate-105 overflow-hidden relative border-r border-slate-100">
-              <img
-                src={activeProductDetail.image}
-                alt={activeProductDetail.name}
-                referrerPolicy="no-referrer"
-                className="h-full w-full object-cover"
-              />
-              <div className={`absolute bottom-4 left-4 rounded-lg bg-slate-900/80 py-1.5 px-3 text-[10px] tracking-wider ${theme.accentText} font-mono border border-white/10 uppercase font-semibold`}>
-                {activeProductDetail.category}
+            <div className="w-full md:w-1/2 bg-slate-50 relative border-r border-slate-100 flex flex-col">
+              <div className="flex-1 overflow-hidden relative min-h-[300px] aspect-square md:aspect-auto">
+                {viewingVideo && activeProductDetail.videoUrl ? (() => {
+                  const url = activeProductDetail.videoUrl;
+                  const isYoutube = url.includes('youtube.com') || url.includes('youtu.be');
+                  if (isYoutube) {
+                    let embedUrl = url;
+                    if (!url.includes('embed/')) {
+                      const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+                      const match = url.match(regExp);
+                      if (match && match[2].length === 11) {
+                        embedUrl = `https://www.youtube.com/embed/${match[2]}?autoplay=1&mute=1&loop=1&playlist=${match[2]}`;
+                      }
+                    }
+                    return (
+                      <iframe
+                        src={embedUrl}
+                        title="Product Video"
+                        frameBorder="0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        allowFullScreen
+                        className="h-full w-full object-cover min-h-[300px]"
+                      />
+                    );
+                  } else {
+                    return (
+                      <video
+                        src={url}
+                        controls
+                        autoPlay
+                        muted
+                        loop
+                        className="h-full w-full object-cover min-h-[300px]"
+                      />
+                    );
+                  }
+                })() : (
+                  <img
+                    src={selectedDetailImage || activeProductDetail.image}
+                    alt={activeProductDetail.name}
+                    referrerPolicy="no-referrer"
+                    className="h-full w-full object-cover transition-all duration-300"
+                  />
+                )}
+                <div className={`absolute top-4 left-4 rounded-lg bg-slate-900/80 py-1.5 px-3 text-[10px] tracking-wider ${theme.accentText} font-mono border border-white/10 uppercase font-semibold`}>
+                  {activeProductDetail.category}
+                </div>
               </div>
+              
+              {/* Image Gallery Selection Thumbnails */}
+              {((activeProductDetail.images && activeProductDetail.images.length > 0) || activeProductDetail.videoUrl) && (
+                <div className="p-4 bg-slate-50 border-t border-slate-100">
+                  <span className="block text-[9px] font-mono font-bold uppercase tracking-wider text-slate-400 mb-2">
+                    {settings.language === 'fr' ? 'Galerie de photos & médias' : 'Product Gallery & Media'}
+                  </span>
+                  <div className="flex items-center space-x-2 overflow-x-auto pb-1 scrollbar-none">
+                    {(() => {
+                      const imgUrls = [activeProductDetail.image, ...(activeProductDetail.images || [])]
+                        .filter((val, i, self) => self.indexOf(val) === i);
+                        
+                      return (
+                        <>
+                          {imgUrls.map((imgUrl, idx) => {
+                            const isActive = !viewingVideo && (selectedDetailImage || activeProductDetail.image) === imgUrl;
+                            return (
+                              <button
+                                key={idx}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedDetailImage(imgUrl);
+                                  setViewingVideo(false);
+                                }}
+                                className={`h-11 w-11 rounded-lg overflow-hidden border-2 flex-shrink-0 transition-all ${
+                                  isActive 
+                                    ? 'border-indigo-600 scale-105 shadow-sm' 
+                                    : 'border-transparent hover:border-slate-300'
+                                }`}
+                              >
+                                <img
+                                  src={imgUrl}
+                                  alt=""
+                                  referrerPolicy="no-referrer"
+                                  className="h-full w-full object-cover"
+                                />
+                              </button>
+                            );
+                          })}
+
+                          {activeProductDetail.videoUrl && (
+                            <button
+                              type="button"
+                              onClick={() => setViewingVideo(true)}
+                              className={`h-11 w-11 rounded-lg overflow-hidden border-2 flex-shrink-0 transition-all flex flex-col items-center justify-center bg-slate-900 text-white relative ${
+                                viewingVideo 
+                                  ? 'border-indigo-600 scale-105 shadow-sm' 
+                                  : 'border-transparent hover:border-slate-700'
+                              }`}
+                            >
+                              <Play className="h-4 w-4 fill-white" />
+                              <span className="text-[7px] font-mono font-bold mt-0.5 tracking-tighter uppercase px-0.5">VIDEO</span>
+                            </button>
+                          )}
+                        </>
+                      );
+                    })()}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Right details content box */}
@@ -1581,12 +1692,12 @@ export const ShopLayout: React.FC = () => {
                 </h2>
 
                 <div className="mt-3 flex items-baseline space-x-2.5">
-                  <span className={`font-mono text-sm font-bold ${theme.accentText}`}>
-                    {settings.baseCurrency}{activeProductDetail.price.toFixed(2)}
+                  <span className={`${settings.priceColor || 'text-indigo-600'} ${settings.priceSize || 'text-sm'}`}>
+                    {formatPrice(activeProductDetail.price)}
                   </span>
                   {activeProductDetail.originalPrice && activeProductDetail.originalPrice > activeProductDetail.price && (
-                    <span className="font-mono text-xs text-slate-400 line-through">
-                      {settings.baseCurrency}{activeProductDetail.originalPrice.toFixed(2)}
+                    <span className={`${settings.originalPriceColor || 'text-slate-400 line-through'} ${settings.originalPriceSize || 'text-xs'}`}>
+                      {formatPrice(activeProductDetail.originalPrice)}
                     </span>
                   )}
                 </div>

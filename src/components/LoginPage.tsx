@@ -14,7 +14,6 @@ export const LoginPage: React.FC = () => {
   const theme = getTheme(settings.websiteTheme);
 
   const [isRegister, setIsRegister] = useState(false);
-  const [showAutofill, setShowAutofill] = useState(false);
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
@@ -84,21 +83,6 @@ export const LoginPage: React.FC = () => {
     }, 500);
   };
 
-  const handleAutofill = (role: 'super_admin' | 'admin' | 'customer') => {
-    setErrorText(null);
-    setIsRegister(false);
-    if (role === 'super_admin') {
-      setEmail('ganoniarbi@gmail.com');
-      setPassword('ARB790874A');
-    } else if (role === 'admin') {
-      setEmail('admin@aetherobjects.co');
-      setPassword('admin123');
-    } else {
-      setEmail('alexander@sterling-design.co');
-      setPassword('customer123');
-    }
-  };
-
   return (
     <div className="max-w-7xl mx-auto px-4 py-12 md:py-20 flex flex-col items-center justify-center min-h-[75vh]">
       {/* Back to Shop Navigation Shortcut */}
@@ -128,11 +112,9 @@ export const LoginPage: React.FC = () => {
           <div className="absolute right-0 top-0 h-40 w-40 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none"></div>
 
           <span 
-            onClick={() => setShowAutofill(!showAutofill)}
-            className="inline-flex items-center space-x-1 rounded-full bg-white/10 px-2.5 py-1 text-[9px] font-mono font-bold tracking-widest text-indigo-300 uppercase cursor-pointer hover:bg-white/20 select-none transition-all"
-            title="Click to toggle Sandbox Autofill Controls"
+            className="inline-flex items-center space-x-1 rounded-full bg-white/10 px-2.5 py-1 text-[9px] font-mono font-bold tracking-widest text-[#818CF8] uppercase select-none"
           >
-            ⚙️ SECURED AES-256 GENERAL PORTAL {showAutofill ? '[CLICK TO HIDE AUTOFILL]' : '[CLICK TO SHOW AUTOFILL]'}
+            ⚙️ SECURED AES-256 GENERAL PORTAL
           </span>
           <h2 className="font-display text-xl md:text-2xl font-bold mt-2 uppercase tracking-wider text-[#F8FAFC]">
             {isRegister ? 'Account Synthesizer' : 'Secure Identification'}
@@ -143,64 +125,6 @@ export const LoginPage: React.FC = () => {
         </div>
 
         <div className="p-8 space-y-8">
-          {/* Sandbox Credentials Quick-Fill Console */}
-          {showAutofill && (
-            <div className="space-y-3 bg-slate-50 dark:bg-slate-950 p-4 rounded-xl border border-slate-150 dark:border-slate-850 animate-fade-in">
-              <span className="block text-[10px] font-mono font-bold tracking-wider text-slate-400 uppercase">
-                ⚙️ Sandbox Testing Autofill Controls
-              </span>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <button
-                  type="button"
-                  onClick={() => handleAutofill('customer')}
-                  className={`rounded-lg py-2 px-2.5 text-xs font-medium border text-left flex items-center justify-between transition-colors ${
-                    isDark
-                      ? 'bg-slate-900 border-slate-800 hover:bg-slate-800 text-slate-300'
-                      : 'bg-white border-slate-200 hover:bg-slate-55 text-slate-700'
-                  }`}
-                >
-                  <div className="truncate">
-                    <span className="block font-bold">Client</span>
-                    <span className="text-[9.5px] font-mono opacity-70">alexander@... / customer...</span>
-                  </div>
-                  <User className="h-3.5 w-3.5 text-slate-400 flex-shrink-0 ml-1" />
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleAutofill('admin')}
-                  className={`rounded-lg py-2 px-2.5 text-xs font-medium border text-left flex items-center justify-between transition-colors ${
-                    isDark
-                      ? 'bg-slate-900 border-slate-800 hover:bg-slate-800 text-slate-300'
-                      : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-700'
-                  }`}
-                >
-                  <div className="truncate">
-                    <span className="block font-bold">Standard Admin</span>
-                    <span className="text-[9.5px] font-mono opacity-70">admin@aether... / admin...</span>
-                  </div>
-                  <KeyRound className="h-3.5 w-3.5 text-slate-400 flex-shrink-0 ml-1" />
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleAutofill('super_admin')}
-                  className={`rounded-lg py-2 px-2.5 text-xs font-medium border text-left flex items-center justify-between transition-colors ${
-                    isDark
-                      ? 'bg-slate-900 border-slate-800 hover:bg-slate-800 text-slate-300'
-                      : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-7a0'
-                  }`}
-                >
-                  <div className="truncate mb-0.5">
-                    <span className="block font-bold text-indigo-650 dark:text-indigo-400">⚡ Super Admin</span>
-                    <span className="text-[9.5px] font-mono opacity-70">ganoniarbi@... / ARB...</span>
-                  </div>
-                  <Lock className="h-3.5 w-3.5 text-slate-400 flex-shrink-0 ml-1" />
-                </button>
-              </div>
-            </div>
-          )}
-
           {/* Feedback alerts */}
           {errorText && (
             <div className="rounded-xl bg-rose-50 border border-rose-200 p-4 text-xs text-rose-800 flex items-start space-x-2.5 animate-fade-in">

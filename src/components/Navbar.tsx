@@ -211,22 +211,24 @@ export const Navbar: React.FC = () => {
           </div>
 
           {/* Quick Language Toggle */}
-          <button
-            onClick={() => {
-              const nextLang = settings.language === 'fr' ? 'en' : 'fr';
-              updateSettings({ language: nextLang });
-            }}
-            className={`flex items-center space-x-1.5 px-3 py-2 rounded-full border text-[10.5px] font-mono font-bold tracking-tight uppercase hover:bg-slate-105 active:scale-95 transition-all select-none cursor-pointer ${
-              isDark 
-                ? 'border-slate-800 text-slate-300 hover:bg-slate-900' 
-                : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
-            }`}
-            title={settings.language === 'fr' ? "Switch to English" : "Passer au Français"}
-            id="language-switch-btn"
-          >
-            <Globe className="h-3.5 w-3.5 text-slate-450" />
-            <span>{settings.language === 'fr' ? 'FR' : 'EN'}</span>
-          </button>
+          {settings.showLanguageSwitcher !== false && (
+            <button
+              onClick={() => {
+                const nextLang = settings.language === 'fr' ? 'en' : 'fr';
+                updateSettings({ language: nextLang });
+              }}
+              className={`flex items-center space-x-1.5 px-3 py-2 rounded-full border text-[10.5px] font-mono font-bold tracking-tight uppercase hover:bg-slate-105 active:scale-95 transition-all select-none cursor-pointer ${
+                isDark 
+                  ? 'border-slate-800 text-slate-300 hover:bg-slate-900' 
+                  : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+              }`}
+              title={settings.language === 'fr' ? "Switch to English" : "Passer au Français"}
+              id="language-switch-btn"
+            >
+              <Globe className="h-3.5 w-3.5 text-slate-450" />
+              <span>{settings.language === 'fr' ? 'FR' : 'EN'}</span>
+            </button>
+          )}
 
           {/* Order Tracking Quick shortcut */}
           <button

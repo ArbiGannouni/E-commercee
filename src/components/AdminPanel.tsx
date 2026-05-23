@@ -6,6 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { useStore } from '../state/StoreContext';
 import { Product, Order, PromoCode, OrderStatus, UserRole, AdminPermissions } from '../types';
+import { getTranslation } from '../utils/translations';
 import { 
   TrendingUp, Package, ShoppingCart, Users, Coins, Tag, 
   Settings, Trash2, Edit3, Plus, Sliders, CheckCircle, 
@@ -49,6 +50,8 @@ export const AdminPanel: React.FC = () => {
     manualSyncDb
   } = useStore();
 
+  const t = getTranslation(settings.language);
+
   // Navigation Sub-views inside Admin Panel
   const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'orders' | 'customers' | 'promos' | 'settings' | 'emails' | 'permissions' | 'api'>('dashboard');
   const [selectedEmailId, setSelectedEmailId] = useState<string | null>(null);
@@ -78,7 +81,6 @@ export const AdminPanel: React.FC = () => {
   useEffect(() => {
     if (currentAdminUser?.role === 'admin') {
       const isTabAllowed = (tabId: string): boolean => {
-        if (tabId === 'permissions') return true;
         const tabMap: Record<string, keyof AdminPermissions> = {
           dashboard: 'viewDashboard',
           products: 'viewProducts',
@@ -88,6 +90,7 @@ export const AdminPanel: React.FC = () => {
           emails: 'viewEmails',
           settings: 'viewSettings',
           api: 'viewSettings',
+          permissions: 'viewPermissions'
         };
         const permKey = tabMap[tabId];
         return permKey ? adminPermissions[permKey] === true : true;
@@ -160,6 +163,8 @@ export const AdminPanel: React.FC = () => {
   const [newProdStock, setNewProdStock] = useState(0);
   const [newProdDesc, setNewProdDesc] = useState('');
   const [newProdImage, setNewProdImage] = useState('');
+  const [newProdImages, setNewProdImages] = useState('');
+  const [newProdVideoUrl, setNewProdVideoUrl] = useState('');
   
   // New Staff Registration State
   const [newStaffName, setNewStaffName] = useState('');
@@ -251,7 +256,7 @@ export const AdminPanel: React.FC = () => {
             </div>
             <div>
               <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 mb-1">
-                Security Password (Use ARB790874A)
+                Security Password
               </label>
               <input
                 type="password"
@@ -265,7 +270,7 @@ export const AdminPanel: React.FC = () => {
 
             {passError && (
               <p className="text-[11px] font-medium text-rose-500">
-                {passError} Use 'ganoniarbi@gmail.com' and 'ARB790874A' to authenticate clearance.
+                {passError}
               </p>
             )}
 
@@ -324,6 +329,13 @@ export const AdminPanel: React.FC = () => {
 
     const finalCategory = isCustomCategory ? (customCategoryName.trim() || 'Uncategorized') : newProdCategory;
 
+    const parsedImages = newProdImages
+      ? newProdImages
+          .split(/[\n,]/)
+          .map((url) => url.trim())
+          .filter((url) => url.length > 0)
+      : [];
+
     addProduct({
       name: newProdName,
       description: newProdDesc,
@@ -332,6 +344,8 @@ export const AdminPanel: React.FC = () => {
       category: finalCategory,
       stock: Number(newProdStock),
       image: newProdImage || 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=800&auto=format&fit=crop&q=80',
+      images: parsedImages.length > 0 ? parsedImages : [newProdImage].filter(Boolean),
+      videoUrl: newProdVideoUrl.trim() || undefined,
       highlights: highlightList,
       tags: tagList,
       seoTitle: newProdSeoTitle ? newProdSeoTitle.trim() : undefined,
@@ -347,6 +361,8 @@ export const AdminPanel: React.FC = () => {
     setNewProdStock(0);
     setNewProdDesc('');
     setNewProdImage('');
+    setNewProdImages('');
+    setNewProdVideoUrl('');
     setNewProdHighlight('');
     setNewProdTags('');
     setNewProdSeoTitle('');
@@ -499,23 +515,25 @@ export const AdminPanel: React.FC = () => {
 
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8" id="admin-panel-root">
-      
+       
       {/* Dynamic Upper Title details */}
       <div className="flex flex-col md:flex-row md:items-center justify-between pb-6 mb-8 border-b border-slate-200">
         <div>
-          <h1 className="font-display text-2xl font-bold tracking-tight text-slate-900">{settings.adminPanelName || 'Administrative Control Console'}</h1>
+          <h1 className="font-display text-2xl font-bold tracking-tight text-slate-900">{settings.adminPanelName || (settings.language === 'fr' ? 'Console de Contrôle Administratif' : 'Administrative Control Console')}</h1>
           <p className="text-xs text-slate-450 mt-1">
-            Real-time shop financial ledger, product catalogue editor, promotion campaigns and order processing tools.
+            {settings.language === 'fr' 
+              ? "Registre financier de la boutique en temps réel, éditeur de catalogue de produits, campagnes de promotion et traitement des commandes."
+              : "Real-time shop financial ledger, product catalogue editor, promotion campaigns and order processing tools."}
           </p>
         </div>
         <div className="flex items-center space-x-3 mt-4 md:mt-0 text-xs font-mono">
-          <span className="text-slate-450 uppercase">ACCESS PROTOCOL: </span>
+          <span className="text-slate-450 uppercase">{settings.language === 'fr' ? "PROTOCOLE D'ACCÈS: " : "ACCESS PROTOCOL: "}</span>
           <span className="rounded-full bg-emerald-100 text-emerald-800 px-3 py-1 font-semibold">ADMIN_SECURE_AUTH</span>
           <button 
             onClick={() => logoutUser()}
             className="text-slate-500 hover:text-rose-600 border border-slate-200 px-2.5 py-1 rounded hover:bg-slate-50 font-semibold"
           >
-            Lock Dashboard
+            {settings.language === 'fr' ? "Verrouiller le tableau de bord" : "Lock Dashboard"}
           </button>
         </div>
       </div>
@@ -523,18 +541,17 @@ export const AdminPanel: React.FC = () => {
       {/* Grid Tabs Selection */}
       <div className="flex space-x-1.5 border-b border-slate-200 pb-4 mb-6 overflow-x-auto">
         {[
-          { id: 'dashboard', label: 'Suite Dashboard', icon: TrendingUp },
-          { id: 'products', label: 'Inventory Register', icon: Package },
-          { id: 'orders', label: 'Order Processing', icon: ShoppingCart },
-          { id: 'customers', label: 'Customers Registry', icon: Users },
-          { id: 'promos', label: 'Discount Campaigns', icon: Tag },
-          { id: 'emails', label: `System Alerts (${simulatedEmails.filter(e => !e.read).length})`, icon: Bell },
-          { id: 'settings', label: 'Store Constants', icon: Settings },
-          { id: 'api', label: 'API & Integrations', icon: Key },
-          { id: 'permissions', label: 'Staff & Permissions', icon: Lock },
+          { id: 'dashboard', label: settings.language === 'fr' ? 'Registre d\'Analyses' : 'Suite Dashboard', icon: TrendingUp },
+          { id: 'products', label: settings.language === 'fr' ? 'Inventaire des Actifs' : 'Inventory Register', icon: Package },
+          { id: 'orders', label: settings.language === 'fr' ? 'Registres d\'Achats' : 'Order Processing', icon: ShoppingCart },
+          { id: 'customers', label: settings.language === 'fr' ? 'Comptes d\'Acquéreurs' : 'Customers Registry', icon: Users },
+          { id: 'promos', label: settings.language === 'fr' ? 'Bons de Réduction' : 'Discount Campaigns', icon: Tag },
+          { id: 'emails', label: settings.language === 'fr' ? `Correspondance d'Alertes (${simulatedEmails.filter(e => !e.read).length})` : `System Alerts (${simulatedEmails.filter(e => !e.read).length})`, icon: Bell },
+          { id: 'settings', label: settings.language === 'fr' ? 'Constantes de la Boutique' : 'Store Constants', icon: Settings },
+          { id: 'api', label: settings.language === 'fr' ? 'API & Intégrations' : 'API & Integrations', icon: Key },
+          { id: 'permissions', label: settings.language === 'fr' ? 'Personnel & Autorisations' : 'Staff & Permissions', icon: Lock },
         ].filter((tab) => {
           if (currentAdminUser?.role === 'super_admin') return true;
-          if (tab.id === 'permissions') return true;
           
           const tabMap: Record<string, keyof AdminPermissions> = {
             dashboard: 'viewDashboard',
@@ -545,6 +562,7 @@ export const AdminPanel: React.FC = () => {
             emails: 'viewEmails',
             settings: 'viewSettings',
             api: 'viewSettings',
+            permissions: 'viewPermissions'
           };
           
           const permKey = tabMap[tab.id];
@@ -577,9 +595,9 @@ export const AdminPanel: React.FC = () => {
             
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between transition-all hover:shadow-md">
               <div className="space-y-1.5">
-                <span className="block font-mono text-[10px] text-slate-400 uppercase tracking-widest">Total Net Revenue</span>
+                <span className="block font-mono text-[10px] text-slate-400 uppercase tracking-widest">{settings.language === 'fr' ? "Revenu Net Total" : "Total Net Revenue"}</span>
                 <span className="block text-xl font-bold font-mono text-slate-900">{settings.baseCurrency}{totalRevenue.toFixed(2)}</span>
-                <span className="block text-[9.5px] font-sans text-emerald-600 font-semibold">↑ 14.2% from preceding week</span>
+                <span className="block text-[9.5px] font-sans text-emerald-600 font-semibold">{settings.language === 'fr' ? "↑ 14.2% par rapport à la semaine précédente" : "↑ 14.2% from preceding week"}</span>
               </div>
               <div className="rounded-xl bg-indigo-50 border border-indigo-100 p-3 text-indigo-600">
                 <Coins className="h-5 w-5" />
@@ -588,9 +606,9 @@ export const AdminPanel: React.FC = () => {
 
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between transition-all hover:shadow-md">
               <div className="space-y-1.5">
-                <span className="block font-mono text-[10px] text-slate-400 uppercase tracking-widest">Orders Processed</span>
-                <span className="block text-xl font-bold font-mono text-slate-900">{totalSalesCount} Receipts</span>
-                <span className="block text-[9.5px] font-sans text-slate-400">Average billing basket size: 1.8 items</span>
+                <span className="block font-mono text-[10px] text-slate-400 uppercase tracking-widest">{settings.language === 'fr' ? "Commandes Traitées" : "Orders Processed"}</span>
+                <span className="block text-xl font-bold font-mono text-slate-900">{totalSalesCount} {settings.language === 'fr' ? "Reçus" : "Receipts"}</span>
+                <span className="block text-[9.5px] font-sans text-slate-400">{settings.language === 'fr' ? "Taille du panier moyen : 1.8 articles" : "Average billing basket size: 1.8 items"}</span>
               </div>
               <div className="rounded-xl bg-indigo-50 border border-indigo-100 p-3 text-indigo-600">
                 <ShoppingCart className="h-5 w-5" />
@@ -599,9 +617,9 @@ export const AdminPanel: React.FC = () => {
 
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between transition-all hover:shadow-md">
               <div className="space-y-1.5">
-                <span className="block font-mono text-[10px] text-slate-400 uppercase tracking-widest">Mean Ticket Order Value</span>
-                <span className="block text-xl font-bold font-mono text-slate-900">{settings.baseCurrency}{averageValue.toFixed(2)}</span>
-                <span className="block text-[9.5px] font-sans text-emerald-600 font-semibold">↑ Premium tier items chosen</span>
+                <span className="block font-mono text-[10px] text-slate-400 uppercase tracking-widest">{settings.language === 'fr' ? "Valeur Moyenne des Commandes" : "Mean Ticket Order Value"}</span>
+                 <span className="block text-xl font-bold font-mono text-slate-900">{settings.baseCurrency}{averageValue.toFixed(2)}</span>
+                <span className="block text-[9.5px] font-sans text-emerald-600 font-semibold">{settings.language === 'fr' ? "↑ Articles haut de gamme sélectionnés" : "↑ Premium tier items chosen"}</span>
               </div>
               <div className="rounded-xl bg-indigo-50 border border-indigo-100 p-3 text-indigo-600">
                 <TrendingUp className="h-5 w-5" />
@@ -610,9 +628,9 @@ export const AdminPanel: React.FC = () => {
 
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between transition-all hover:shadow-md">
               <div className="space-y-1.5">
-                <span className="block font-mono text-[10px] text-slate-400 uppercase tracking-widest">Customer Accounts</span>
-                <span className="block text-xl font-bold font-mono text-slate-900">{customers.length} Profiles</span>
-                <span className="block text-[9.5px] font-sans text-slate-400">Loyalty rate threshold: 82%</span>
+                <span className="block font-mono text-[10px] text-slate-400 uppercase tracking-widest">{settings.language === 'fr' ? "Comptes Clients" : "Customer Accounts"}</span>
+                <span className="block text-xl font-bold font-mono text-slate-900">{customers.length} {settings.language === 'fr' ? "Profils" : "Profiles"}</span>
+                <span className="block text-[9.5px] font-sans text-slate-400">{settings.language === 'fr' ? "Taux de fidélité : 82%" : "Loyalty rate threshold: 82%"}</span>
               </div>
               <div className="rounded-xl bg-indigo-50 border border-indigo-100 p-3 text-indigo-600">
                 <Users className="h-5 w-5" />
@@ -628,10 +646,10 @@ export const AdminPanel: React.FC = () => {
             <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 p-6 flex flex-col justify-between shadow-sm">
               <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-3">
                 <div className="space-y-0.5">
-                  <h3 className="font-display text-sm font-bold text-slate-900">Capital Flow Performance</h3>
-                  <p className="text-[10px] text-slate-400">Total transaction processing volumes over past 7 calendar dates</p>
+                  <h3 className="font-display text-sm font-bold text-slate-900">{settings.language === 'fr' ? "Performance des Flux de Capitaux" : "Capital Flow Performance"}</h3>
+                  <p className="text-[10px] text-slate-400">{settings.language === 'fr' ? "Volumes globaux de traitement des transactions sur les 7 derniers jours" : "Total transaction processing volumes over past 7 calendar dates"}</p>
                 </div>
-                <span className="text-[10.5px] font-mono hover:text-indigo-600 text-slate-500 cursor-pointer font-semibold">Export CSV →</span>
+                <span className="text-[10.5px] font-mono hover:text-indigo-600 text-slate-500 cursor-pointer font-semibold">{settings.language === 'fr' ? "Exporter CSV →" : "Export CSV →"}</span>
               </div>
 
               {/* Vector SVG Line Chart */}
@@ -1160,12 +1178,34 @@ export const AdminPanel: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 mb-1">Image Web Address</label>
+                <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 mb-1">Image Web Address (Primary)</label>
                 <input
                   type="text"
                   value={newProdImage}
                   onChange={(e) => setNewProdImage(e.target.value)}
                   placeholder="Paste Unsplash address link..."
+                  className="w-full rounded bg-slate-50 border border-slate-200 p-2 text-xs outline-none focus:bg-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 mb-1">Additional Images (Paste URLs separated by commas or newlines)</label>
+                <textarea
+                  rows={2}
+                  value={newProdImages}
+                  onChange={(e) => setNewProdImages(e.target.value)}
+                  placeholder="Paste subsequent image URLs..."
+                  className="w-full rounded bg-slate-50 border border-slate-200 p-2 text-xs outline-none focus:bg-white text-slate-800"
+                ></textarea>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 mb-1">Product Video URL (MP4 stream or YouTube link)</label>
+                <input
+                  type="text"
+                  value={newProdVideoUrl}
+                  onChange={(e) => setNewProdVideoUrl(e.target.value)}
+                  placeholder="Paste YouTube link / embedded URL, or direct MP4 stream URL..."
                   className="w-full rounded bg-slate-50 border border-slate-200 p-2 text-xs outline-none focus:bg-white"
                 />
               </div>
@@ -1451,26 +1491,53 @@ export const AdminPanel: React.FC = () => {
               </div>
 
               {/* Product Image URL with Premium Thumbnail Preview */}
-              <div className="space-y-2">
-                <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400">Product Image URL</label>
-                <div className="flex items-center space-x-4">
-                  <div className="h-14 w-14 rounded-lg border border-slate-200 bg-slate-50 overflow-hidden flex-shrink-0 shadow-sm">
-                    <img 
-                      src={editingProduct.image || 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=800&auto=format&fit=crop&q=80'} 
-                      alt="Preview" 
-                      className="h-full w-full object-cover transition-opacity duration-200"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=800&auto=format&fit=crop&q=80';
-                      }}
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400">Primary Product Image URL</label>
+                  <div className="flex items-center space-x-4">
+                    <div className="h-14 w-14 rounded-lg border border-slate-200 bg-slate-50 overflow-hidden flex-shrink-0 shadow-sm">
+                      <img 
+                        src={editingProduct.image || 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=800&auto=format&fit=crop&q=80'} 
+                        alt="Preview" 
+                        className="h-full w-full object-cover transition-opacity duration-200"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=800&auto=format&fit=crop&q=80';
+                        }}
+                      />
+                    </div>
+                    <input
+                      type="text"
+                      required
+                      value={editingProduct.image}
+                      onChange={(e) => setEditingProduct({ ...editingProduct, image: e.target.value })}
+                      placeholder="Paste Unsplash image URL..."
+                      className="flex-1 rounded bg-slate-50 border border-slate-200 p-2 text-xs outline-none focus:bg-white font-mono text-slate-800"
                     />
                   </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400">Additional Multi-Images (Paste one URL per line or separated by commas)</label>
+                  <textarea
+                    rows={3}
+                    value={editingProduct.images ? editingProduct.images.join('\n') : ''}
+                    onChange={(e) => {
+                      const list = e.target.value.split(/[\n,]/).map(url => url.trim()).filter(Boolean);
+                      setEditingProduct({ ...editingProduct, images: list });
+                    }}
+                    placeholder="Paste secondary image URLs..."
+                    className="w-full rounded bg-slate-50 border border-slate-200 p-2 text-xs outline-none focus:bg-white text-slate-800 font-mono text-slate-800"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400">Product Video URL (MP4 stream or YouTube link)</label>
                   <input
                     type="text"
-                    required
-                    value={editingProduct.image}
-                    onChange={(e) => setEditingProduct({ ...editingProduct, image: e.target.value })}
-                    placeholder="Paste Unsplash image URL..."
-                    className="flex-1 rounded bg-slate-50 border border-slate-200 p-2 text-xs outline-none focus:bg-white font-mono text-slate-800"
+                    value={editingProduct.videoUrl || ''}
+                    onChange={(e) => setEditingProduct({ ...editingProduct, videoUrl: e.target.value })}
+                    placeholder="Paste YouTube link / embedded URL, or direct MP4 stream URL..."
+                    className="w-full rounded bg-slate-50 border border-slate-200 p-2 text-xs outline-none focus:bg-white text-slate-850 font-mono text-slate-800"
                   />
                 </div>
               </div>
@@ -2886,6 +2953,32 @@ export const AdminPanel: React.FC = () => {
                     </select>
                   </div>
 
+                  <div className="flex items-center justify-between p-3 bg-slate-50/50 border border-slate-200/60 rounded-xl">
+                    <div className="pr-3">
+                      <label className="block text-[10.5px] font-bold text-slate-800">
+                        {settings.language === 'fr' ? "Sélecteurs de Langues (EN / FR)" : "Language Switcher Buttons"}
+                      </label>
+                      <span className="text-[9.5px] text-slate-450 block mt-0.5 leading-tight">
+                        {settings.language === 'fr' 
+                          ? "Activer ou désactiver les boutons de sélection de langue sur la boutique publique."
+                          : "Enable or disable language selector buttons on the public storefront."}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => updateSettings({ showLanguageSwitcher: settings.showLanguageSwitcher === false ? true : false })}
+                      className={`relative inline-flex h-5 w-10 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                        settings.showLanguageSwitcher !== false ? 'bg-indigo-600' : 'bg-slate-200'
+                      }`}
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                          settings.showLanguageSwitcher !== false ? 'translate-x-5' : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
+                  </div>
+
                   <div>
                     <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 mb-1">
                       Active Currency Spec
@@ -2928,6 +3021,101 @@ export const AdminPanel: React.FC = () => {
                       value={settings.shippingRate}
                       onChange={(e) => updateSettings({ shippingRate: Number(e.target.value) })}
                     />
+                  </div>
+
+                  <div className="border-t border-slate-100 pt-4 mt-4 space-y-4 md:col-span-1">
+                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wide">
+                      {settings.language === 'fr' ? "Formatage et Style des Prix" : "Price Placement & Styling"}
+                    </h4>
+
+                    {/* Currency Position */}
+                    <div>
+                      <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 mb-1">
+                        {settings.language === 'fr' ? "Position de la Devise" : "Currency Position"}
+                      </label>
+                      <select
+                        className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 px-2.5 text-xs font-mono outline-none focus:bg-white focus:border-indigo-700 text-slate-800"
+                        value={settings.currencyPosition || 'right'}
+                        onChange={(e) => updateSettings({ currencyPosition: e.target.value as 'left' | 'right' })}
+                      >
+                        <option value="left">{settings.language === 'fr' ? "À gauche ($25.00)" : "On the Left ($25.00)"}</option>
+                        <option value="right">{settings.language === 'fr' ? "À droite (25.00 $)" : "On the Right (25.00 $)"}</option>
+                      </select>
+                    </div>
+
+                    {/* Price Style (After Discount / Active Price) */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 mb-1">
+                          {settings.language === 'fr' ? "Couleur du Prix Final" : "Active Price Color"}
+                        </label>
+                        <select
+                          className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 px-2 text-xs outline-none focus:border-indigo-500 text-slate-800"
+                          value={settings.priceColor}
+                          onChange={(e) => updateSettings({ priceColor: e.target.value })}
+                        >
+                          <option value="text-indigo-600 font-bold">{settings.language === 'fr' ? "Indigo (Standard)" : "Indigo (Default)"}</option>
+                          <option value="text-rose-600 font-bold">{settings.language === 'fr' ? "Rose Vif" : "Bright Rose"}</option>
+                          <option value="text-emerald-600 font-bold">{settings.language === 'fr' ? "Vert Émeraude" : "Emerald Green"}</option>
+                          <option value="text-slate-900 font-bold">{settings.language === 'fr' ? "Noir Ardoise" : "Slate Noir"}</option>
+                          <option value="text-amber-600 font-bold">{settings.language === 'fr' ? "Or Ambré" : "Amber Gold"}</option>
+                          <option value="text-blue-600 font-bold">{settings.language === 'fr' ? "Bleu Électrique" : "Electric Blue"}</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 mb-1">
+                          {settings.language === 'fr' ? "Taille du prix Final" : "Active Price Size"}
+                        </label>
+                        <select
+                          className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 px-2 text-xs outline-none focus:border-indigo-500 text-slate-800"
+                          value={settings.priceSize}
+                          onChange={(e) => updateSettings({ priceSize: e.target.value })}
+                        >
+                          <option value="text-xs font-semibold">Extra Small</option>
+                          <option value="text-sm font-semibold">Small</option>
+                          <option value="text-base font-bold">Medium (Default)</option>
+                          <option value="text-lg font-bold">Large</option>
+                          <option value="text-xl font-bold font-mono">X-Large Mono</option>
+                          <option value="text-2xl font-extrabold font-mono">UX-Large Pro</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Price Style (Before Discount / Original Price) */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 mb-1">
+                          {settings.language === 'fr' ? "Couleur du prix d'origine" : "Original Price Color"}
+                        </label>
+                        <select
+                          className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 px-2 text-xs outline-none focus:border-indigo-500 text-slate-800"
+                          value={settings.originalPriceColor}
+                          onChange={(e) => updateSettings({ originalPriceColor: e.target.value })}
+                        >
+                          <option value="text-slate-400 line-through font-normal">{settings.language === 'fr' ? "Gris (Standard)" : "Slate Grey (Default)"}</option>
+                          <option value="text-rose-muted line-through font-normal">{settings.language === 'fr' ? "Rose Discret" : "Muted Rose"}</option>
+                          <option value="text-slate-300 line-through italic">{settings.language === 'fr' ? "Furtif Italic" : "Stealth Muted Italic"}</option>
+                          <option value="hidden">{settings.language === 'fr' ? "Masqué" : "Hidden (Do not display)"}</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 mb-1">
+                          {settings.language === 'fr' ? "Taille du prix d'origine" : "Original Price Size"}
+                        </label>
+                        <select
+                          className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 px-2 text-xs outline-none focus:border-indigo-500 text-slate-800"
+                          value={settings.originalPriceSize}
+                          onChange={(e) => updateSettings({ originalPriceSize: e.target.value })}
+                        >
+                          <option value="text-[10px] font-mono">Mini Mono</option>
+                          <option value="text-xs font-sans">Extra Small (Default)</option>
+                          <option value="text-sm font-sans">Small</option>
+                          <option value="text-base line-through">Medium</option>
+                        </select>
+                      </div>
+                    </div>
                   </div>
 
                   <div className="pt-2">
@@ -4400,7 +4588,7 @@ export const AdminPanel: React.FC = () => {
                       <span className="inline-block w-1.5 h-1.5 rounded-full bg-indigo-500 mr-1.5 animate-pulse"></span>
                       Section A — Tab Visibility (What they can see)
                     </span>
-                    <span className="text-[8px] text-indigo-400">7 TOGGLES</span>
+                    <span className="text-[8px] text-indigo-400">8 TOGGLES</span>
                   </h4>
                   <div className="space-y-3">
                     {[
@@ -4410,7 +4598,8 @@ export const AdminPanel: React.FC = () => {
                       { key: 'viewCustomers', label: 'Customers Registry View', desc: 'Allows viewing user profiles, buyer emails, and registry history.' },
                       { key: 'viewPromos', label: 'Discount Campaigns View', desc: 'Allows viewing coupon campaigns, vouchers, and active discount codes.' },
                       { key: 'viewEmails', label: 'System Alerts & Emails View', desc: 'Allows viewing administrative logs, alert messages, and emails.' },
-                      { key: 'viewSettings', label: 'Store Constants Setup View', desc: 'Allows viewing the theme selector, active currency rates, and parameters.' }
+                      { key: 'viewSettings', label: 'Store Constants Setup View', desc: 'Allows viewing the theme selector, active currency rates, and parameters.' },
+                      { key: 'viewPermissions', label: 'Staff & Permissions View', desc: 'Allows viewing standard admin credentials, authority matrix, and staff register.' }
                     ].map((perm) => {
                       const isChecked = adminPermissions[perm.key as keyof typeof adminPermissions];
                       const isSuper = currentAdminUser?.role === 'super_admin';

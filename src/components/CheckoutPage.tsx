@@ -21,7 +21,8 @@ export const CheckoutPage: React.FC = () => {
     settings,
     currentUser,
     applyPromoCode,
-    removePromoCode
+    removePromoCode,
+    formatPrice
   } = useStore();
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
@@ -399,7 +400,7 @@ export const CheckoutPage: React.FC = () => {
                   <ShieldCheck className="h-5 w-5 text-indigo-500 mt-0.5 flex-shrink-0" />
                   <div>
                     <span className="font-bold text-current block mb-1">Logistics Carriage Receipt</span>
-                    Please arrange the physical cash reserve of <strong className="font-semibold text-indigo-650 dark:text-purple-400">{settings.baseCurrency}{finalTotal.toFixed(2)}</strong> for the carriage courier upon delivery arrival. A matching transaction invoice slips will be delivered.
+                    Please arrange the physical cash reserve of <strong className="font-semibold text-indigo-650 dark:text-purple-400">{formatPrice(finalTotal)}</strong> for the carriage courier upon delivery arrival. A matching transaction invoice slips will be delivered.
                   </div>
                 </div>
 
@@ -466,7 +467,7 @@ export const CheckoutPage: React.FC = () => {
                     </div>
                     <div className="flex justify-between border-t pt-2 mt-2 border-current/5">
                       <span className="text-slate-400 font-semibold">Total Escrow Assessed</span>
-                      <span className="font-mono font-bold text-indigo-600 dark:text-purple-400">{settings.baseCurrency}{completedOrder.total.toFixed(2)}</span>
+                      <span className="font-mono font-bold text-indigo-600 dark:text-purple-400">{formatPrice(completedOrder.total)}</span>
                     </div>
                   </div>
                 </div>
@@ -513,7 +514,7 @@ export const CheckoutPage: React.FC = () => {
                     <span className="text-[10px] text-slate-400 font-mono block mt-0.5">Quantity: {item.quantity}</span>
                   </div>
                   <span className="font-mono font-semibold text-current">
-                    {settings.baseCurrency}{(item.product.price * item.quantity).toFixed(2)}
+                    {formatPrice(item.product.price * item.quantity)}
                   </span>
                 </div>
               ))}
@@ -577,28 +578,28 @@ export const CheckoutPage: React.FC = () => {
             <div className={`space-y-2 pt-4 border-t text-xs text-slate-400 font-medium ${isDark ? 'border-slate-800' : 'border-slate-250/60'}`}>
               <div className="flex justify-between">
                 <span>Subtotal</span>
-                <span className="font-mono text-current">{settings.baseCurrency}{subtotal.toFixed(2)}</span>
+                <span className="font-mono text-current">{formatPrice(subtotal)}</span>
               </div>
               {discount > 0 && (
                 <div className="flex justify-between text-emerald-510 dark:text-emerald-400 font-mono">
                   <span>Promo Reduction</span>
-                  <span>-{settings.baseCurrency}{discount.toFixed(2)}</span>
+                  <span>-{formatPrice(discount)}</span>
                 </div>
               )}
               <div className="flex justify-between">
                 <span>Logistic Shipping Care</span>
                 <span className="font-mono text-current">
-                  {shipping === 0 ? 'FREE' : `${settings.baseCurrency}${shipping.toFixed(2)}`}
+                  {shipping === 0 ? 'FREE' : formatPrice(shipping)}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span>Value Tax ({settings.taxRate * 100}%)</span>
-                <span className="font-mono text-current">{settings.baseCurrency}{tax.toFixed(2)}</span>
+                <span className="font-mono text-current">{formatPrice(tax)}</span>
               </div>
               <div className="border-t border-dashed border-current/10 mt-3 pt-4 flex justify-between items-baseline text-current">
                 <span className="font-bold text-sm">TOTAL INVESTMENT</span>
                 <span className="font-mono text-base font-black text-indigo-600 dark:text-purple-400">
-                  {settings.baseCurrency}{finalTotal.toFixed(2)}
+                  {formatPrice(finalTotal)}
                 </span>
               </div>
             </div>
