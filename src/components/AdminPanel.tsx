@@ -13,9 +13,37 @@ import {
   ArrowRight, ShieldAlert, Lock, Sparkles, Filter, Search, ArrowUp, ArrowDown,
   Palette, Mail, Bell, MessageCircle, MessageSquare,
   Database, Server, CloudLightning, RefreshCw, Key, Globe,
-  Upload, Image as ImageIcon
+  Upload, Image as ImageIcon, Star
 } from 'lucide-react';
 import { SALES_TRENDS } from '../data/mockProducts';
+
+// Smart utility to parse multiple URLs from raw user pastes (covers commas, semicolons, spaces, newlines, and JSON lists)
+const parseMultipleUrls = (input: string): string[] => {
+  if (!input) return [];
+  let cleanInput = input.trim();
+  
+  // If user pasted a JSON copy-paste list like ["http://...", "http://..."]
+  if (/^[\[\s{\"\']/.test(cleanInput)) {
+    try {
+      const parsed = JSON.parse(cleanInput);
+      if (Array.isArray(parsed)) {
+        return parsed.map(x => String(x).trim()).filter(Boolean);
+      }
+    } catch (e) {
+      // Fallback: cleanup brackets and quotes
+      cleanInput = cleanInput.replace(/[\[\]"'{}]/g, ' ');
+    }
+  }
+
+  // Split by newlines, carriage returns, commas, semicolons, tabs, or spaces
+  const splitPattern = /[\n\r,;\t ]+/;
+  return cleanInput
+    .split(splitPattern)
+    .map(url => url.trim())
+    .filter(url => {
+      return url.length > 3 && (url.startsWith('http') || url.startsWith('/') || url.startsWith('data:') || url.includes('.'));
+    });
+};
 
 export const AdminPanel: React.FC = () => {
   const {
@@ -167,6 +195,10 @@ export const AdminPanel: React.FC = () => {
   const [newProdImages, setNewProdImages] = useState('');
   const [newProdVideoUrl, setNewProdVideoUrl] = useState('');
   
+  // Quick Image Link Inputs
+  const [quickLinkInput, setQuickLinkInput] = useState('');
+  const [editQuickLinkInput, setEditQuickLinkInput] = useState('');
+  
   // New Staff Registration State
   const [newStaffName, setNewStaffName] = useState('');
   const [newStaffEmail, setNewStaffEmail] = useState('');
@@ -182,6 +214,8 @@ export const AdminPanel: React.FC = () => {
   // States and handler for image / photo uploading
   const [isDraggingCreation, setIsDraggingCreation] = useState(false);
   const [isDraggingEditing, setIsDraggingEditing] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState<string | null>(null);
+  const [editUploadStatus, setEditUploadStatus] = useState<string | null>(null);
 
   const handleImageUpload = (files: FileList | null, isEditing: boolean) => {
     if (!files) return;
@@ -189,42 +223,86 @@ export const AdminPanel: React.FC = () => {
       if (!file.type.startsWith('image/')) return;
       const reader = new FileReader();
       reader.onload = (event) => {
-        const dataUrl = event.target?.result as string;
-        if (!dataUrl) return;
+        const rawDataUrl = event.target?.result as string;
+        if (!rawDataUrl) return;
 
-        if (isEditing) {
-          setEditingProduct(prev => {
-            if (!prev) return prev;
-            const currentImages = prev.images || [];
-            const primaryIsSet = !!prev.image;
-            const newPrimary = primaryIsSet ? prev.image : dataUrl;
+        // Compress and downscale images client-side to keep files extremely light
+        // (typically ~10KB - 30KB instead of 5MB+ raw digital camera outputs)
+        // This fully prevents the "413 Payload Too Large" error on Vercel and stays way below MongoDB document size caps.
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+
+          // Downscale to a compact yet sharp mobile/web standard max 640px
+          const MAX_SIZE = 640;
+          if (width > MAX_SIZE || height > MAX_SIZE) {
+            if (width > height) {
+              height = Math.round((height * MAX_SIZE) / width);
+              width = MAX_SIZE;
+            } else {
+              width = Math.round((width * MAX_SIZE) / height);
+              height = MAX_SIZE;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
             
-            // Append to images list if it's not already in it
-            const updatedImages = currentImages.includes(dataUrl) 
-              ? currentImages 
-              : [...currentImages, dataUrl];
+            // Convert to lightweight JPEG format instead of heavy transparent PNG/raw formats
+            // Quality level 0.5 provides a beautiful high-res product picture at ~10-15KB size
+            const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.5);
+            const dataUrl = compressedDataUrl;
 
-            return {
-              ...prev,
-              image: newPrimary,
-              images: updatedImages
-            };
-          });
-        } else {
-          setNewProdImage(prevMain => {
-            const finalMain = prevMain ? prevMain : dataUrl;
-            setNewProdImages(prevSub => {
-              const currentList = prevSub 
-                ? prevSub.split(/[\n,]/).map(x => x.trim()).filter(Boolean)
-                : [];
-              if (!currentList.includes(dataUrl)) {
-                return [...currentList, dataUrl].join('\n');
-              }
-              return prevSub;
-            });
-            return finalMain;
-          });
-        }
+            // Report compression savings to the visual dashboard log
+            const origSizeKB = Math.round((file.size / 1024) * 10) / 10;
+            const compSizeKB = Math.round(((dataUrl.length * 0.75) / 1024) * 10) / 10;
+            const savingsPct = Math.round((1 - (dataUrl.length * 0.75) / file.size) * 100);
+            const successMsg = `Successfully compressed "${file.name}" from ${origSizeKB}KB to ${compSizeKB}KB (-${savingsPct}%). Fully optimized for database storage!`;
+
+            if (isEditing) {
+              setEditUploadStatus(successMsg);
+              setEditingProduct(prev => {
+                if (!prev) return prev;
+                const currentImages = prev.images || [];
+                const primaryIsSet = !!prev.image;
+                const newPrimary = primaryIsSet ? prev.image : dataUrl;
+                
+                // Append to images list if it's not already in it
+                const updatedImages = currentImages.includes(dataUrl) 
+                  ? currentImages 
+                  : [...currentImages, dataUrl];
+
+                return {
+                  ...prev,
+                  image: newPrimary,
+                  images: updatedImages
+                };
+              });
+            } else {
+              setUploadStatus(successMsg);
+              setNewProdImage(prevMain => {
+                const finalMain = prevMain ? prevMain : dataUrl;
+                setNewProdImages(prevSub => {
+                  const currentList = prevSub 
+                    ? prevSub.split(/[\n,]/).map(x => x.trim()).filter(Boolean)
+                    : [];
+                  if (!currentList.includes(dataUrl)) {
+                    return [...currentList, dataUrl].join('\n');
+                  }
+                  return prevSub;
+                });
+                return finalMain;
+              });
+            }
+          }
+        };
+        img.src = rawDataUrl;
       };
       reader.readAsDataURL(file);
     });
@@ -1229,13 +1307,13 @@ export const AdminPanel: React.FC = () => {
                 )}
               </div>
 
-              {/* Direct Multi-Image Photo Upload Zone */}
-              <div className="space-y-2 p-3 bg-slate-50 border border-slate-200 rounded-lg">
+              {/* Direct Multi-Image Photo Upload & Link Gallery Builder */}
+              <div className="space-y-3 p-3 bg-slate-50 border border-slate-200 rounded-lg">
                 <span className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400">
-                  📁 Direct Image Upload & Gallery Builder
+                  📷 Product Media & Gallery Builder
                 </span>
                 
-                {/* Drag & Drop Box */}
+                {/* Drag & Drop File Upload Box */}
                 <div
                   onDragOver={(e) => {
                     e.preventDefault();
@@ -1251,7 +1329,7 @@ export const AdminPanel: React.FC = () => {
                     const uploader = document.getElementById('create-photo-uploader');
                     if (uploader) uploader.click();
                   }}
-                  className={`border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-all duration-250 ${
+                  className={`border-2 border-dashed rounded-lg p-3 text-center cursor-pointer transition-all duration-250 ${
                     isDraggingCreation
                       ? 'border-indigo-500 bg-indigo-50/50'
                       : 'border-slate-300 hover:border-slate-400 bg-white'
@@ -1269,7 +1347,78 @@ export const AdminPanel: React.FC = () => {
                   <p className="text-[11px] text-slate-600 font-medium">
                     Drag & Drop multiple images here, or <span className="text-indigo-600 font-bold">browse files</span>
                   </p>
-                  <p className="text-[9px] text-slate-400 mt-0.5">Supports PNG, JPG, WEBP formats</p>
+                  <p className="text-[9px] text-slate-400 mt-0.5">Supports PNG, JPG, WEBP formats (Auto-compressed for high speed)</p>
+                </div>
+
+                {uploadStatus && (
+                  <p className="text-[9.5px] font-mono text-emerald-600 bg-emerald-50/50 p-2 rounded border border-emerald-150 leading-relaxed font-semibold">
+                    ✨ {uploadStatus}
+                  </p>
+                )}
+
+                {/* Highly Interactive "Add Many Image Links (URLs)" Input */}
+                <div className="space-y-1 bg-white p-2.5 rounded border border-slate-150">
+                  <label className="block text-[9.5px] font-mono font-bold uppercase tracking-wider text-slate-450">
+                    🔗 Paste & Add Multiple Image Links (URLs)
+                  </label>
+                  <div className="flex space-x-1.5 pt-1">
+                    <input
+                      type="text"
+                      value={quickLinkInput}
+                      onChange={(e) => setQuickLinkInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          const urls = parseMultipleUrls(quickLinkInput);
+                          if (urls.length > 0) {
+                            let mainImg = newProdImage;
+                            const additional = [...urls];
+                            if (!mainImg) {
+                              mainImg = additional.shift() || '';
+                              setNewProdImage(mainImg);
+                            }
+                            if (additional.length > 0) {
+                              setNewProdImages(prev => {
+                                const current = prev ? prev.split(/[\n,]/).map(x => x.trim()).filter(Boolean) : [];
+                                return [...current, ...additional].join('\n');
+                              });
+                            }
+                            setQuickLinkInput('');
+                          }
+                        }
+                      }}
+                      placeholder="Paste one or more image URLs (separated by spaces, commas, or lines) and press enter..."
+                      className="flex-1 rounded border border-slate-200 p-2 text-xs outline-none focus:border-indigo-500 font-mono text-slate-800 bg-slate-50/50"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const urls = parseMultipleUrls(quickLinkInput);
+                        if (urls.length > 0) {
+                          let mainImg = newProdImage;
+                          const additional = [...urls];
+                          if (!mainImg) {
+                            mainImg = additional.shift() || '';
+                            setNewProdImage(mainImg);
+                          }
+                          if (additional.length > 0) {
+                            setNewProdImages(prev => {
+                              const current = prev ? prev.split(/[\n,]/).map(x => x.trim()).filter(Boolean) : [];
+                              return [...current, ...additional].join('\n');
+                            });
+                          }
+                          setQuickLinkInput('');
+                        }
+                      }}
+                      className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-xs font-bold transition-all flex items-center space-x-1"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      <span>Add</span>
+                    </button>
+                  </div>
+                  <span className="text-[8px] font-mono text-slate-400 block pt-0.5">
+                    Pro-tip: Paste dozens of image URLs at once separated by commas or spaces. They will automatically split into primary & gallery slides!
+                  </span>
                 </div>
 
                 {/* Previews Grid with Deletion */}
@@ -1285,22 +1434,43 @@ export const AdminPanel: React.FC = () => {
                   if (allImgs.length === 0) return null;
 
                   return (
-                    <div className="space-y-1.5 pt-2">
-                      <span className="text-[9px] font-mono text-slate-400 font-semibold block">
-                        Assigned Images ({allImgs.length}) — Click red icon to remove:
-                      </span>
-                      <div className="grid grid-cols-5 gap-2">
+                    <div className="space-y-1.5 pt-1 border-t border-slate-100">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[9.5px] font-mono text-slate-400 font-bold block uppercase">
+                          Active Gallery ({allImgs.length} Images/Links)
+                        </span>
+                        <span className="text-[8px] text-slate-400">
+                          (Hover thumbnail to set MAIN cover or delete)
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-5 gap-2 pt-1">
                         {allImgs.map((img, idx) => (
-                          <div key={idx} className="relative group aspect-square rounded border border-slate-200 overflow-hidden bg-slate-100">
+                          <div key={idx} className="relative group aspect-square rounded border border-slate-200 overflow-hidden bg-slate-100 shadow-sm">
                             <img
                               src={img}
                               alt=""
                               className="h-full w-full object-cover"
                             />
-                            {idx === 0 && (
-                              <span className="absolute bottom-0 left-0 right-0 bg-indigo-600 text-white text-[7px] font-bold text-center py-0.5">
-                                MAIN
+                            {idx === 0 ? (
+                              <span className="absolute bottom-0 left-0 right-0 bg-indigo-650 text-white text-[7px] font-bold text-center py-0.5 uppercase tracking-wide">
+                                MAIN COVER
                               </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const filtered = allImgs.filter(item => item !== img);
+                                  setNewProdImage(img);
+                                  setNewProdImages(filtered.join('\n'));
+                                }}
+                                className="absolute inset-0 bg-slate-900/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer duration-150"
+                              >
+                                <span className="bg-white/95 text-slate-900 rounded px-1.5 py-0.5 text-[8px] font-extrabold shadow flex items-center space-x-1 hover:scale-105 active:scale-95 transition-all">
+                                  <Star className="h-2 w-2 text-amber-500 fill-amber-500" />
+                                  <span>SET MAIN</span>
+                                </span>
+                              </button>
                             )}
                             <button
                               type="button"
@@ -1315,7 +1485,7 @@ export const AdminPanel: React.FC = () => {
                                   setNewProdImages(filtered.slice(1).join('\n'));
                                 }
                               }}
-                              className="absolute -top-1 -right-1 bg-rose-600 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-rose-700 shadow-sm"
+                              className="absolute top-1 right-1 bg-rose-600 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-rose-700 shadow-md cursor-pointer duration-150"
                             >
                               <Trash2 className="h-2.5 w-2.5" />
                             </button>
@@ -1327,26 +1497,28 @@ export const AdminPanel: React.FC = () => {
                 })()}
               </div>
 
-              <div>
-                <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 mb-1">Image Web Address (Primary)</label>
-                <input
-                  type="text"
-                  value={newProdImage}
-                  onChange={(e) => setNewProdImage(e.target.value)}
-                  placeholder="Paste Unsplash address link..."
-                  className="w-full rounded bg-slate-50 border border-slate-200 p-2 text-xs outline-none focus:bg-white"
-                />
-              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+                <div>
+                  <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 mb-1">Image Web Address (Primary)</label>
+                  <input
+                    type="text"
+                    value={newProdImage}
+                    onChange={(e) => setNewProdImage(e.target.value)}
+                    placeholder="Paste Unsplash address link..."
+                    className="w-full rounded bg-slate-50 border border-slate-200 p-2 text-xs outline-none focus:bg-white font-mono text-slate-800"
+                  />
+                </div>
 
-              <div>
-                <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 mb-1">Additional Images (Paste URLs separated by commas or newlines)</label>
-                <textarea
-                  rows={2}
-                  value={newProdImages}
-                  onChange={(e) => setNewProdImages(e.target.value)}
-                  placeholder="Paste subsequent image URLs..."
-                  className="w-full rounded bg-slate-50 border border-slate-200 p-2 text-xs outline-none focus:bg-white text-slate-800"
-                ></textarea>
+                <div>
+                  <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 mb-1">Additional Multi-Images (Separated by newlines)</label>
+                  <textarea
+                    rows={1}
+                    value={newProdImages}
+                    onChange={(e) => setNewProdImages(e.target.value)}
+                    placeholder="Subsequent image URLs..."
+                    className="w-full rounded bg-slate-50 border border-slate-200 p-2 text-xs outline-none focus:bg-white text-slate-800 font-mono text-slate-800"
+                  ></textarea>
+                </div>
               </div>
 
               <div>
@@ -1642,10 +1814,10 @@ export const AdminPanel: React.FC = () => {
 
               {/* Product Image URL with Premium Thumbnail Preview */}
               <div className="space-y-4">
-                {/* Direct Multi-Image Photo Upload Zone */}
-                <div className="space-y-2 p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                {/* Direct Multi-Image Photo Upload & Link Gallery Builder */}
+                <div className="space-y-3 p-3 bg-slate-50 border border-slate-200 rounded-lg">
                   <span className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400">
-                    📁 Direct Image Upload & Gallery Builder
+                    📷 Product Media & Gallery Builder
                   </span>
                   
                   {/* Drag & Drop Box */}
@@ -1664,7 +1836,7 @@ export const AdminPanel: React.FC = () => {
                       const uploader = document.getElementById('edit-photo-uploader');
                       if (uploader) uploader.click();
                     }}
-                    className={`border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-all duration-250 ${
+                    className={`border-2 border-dashed rounded-lg p-3 text-center cursor-pointer transition-all duration-250 ${
                       isDraggingEditing
                         ? 'border-indigo-500 bg-indigo-50/50'
                         : 'border-slate-300 hover:border-slate-400 bg-white'
@@ -1682,7 +1854,79 @@ export const AdminPanel: React.FC = () => {
                     <p className="text-[11px] text-slate-600 font-medium">
                       Drag & Drop multiple images here, or <span className="text-indigo-600 font-bold">browse files</span>
                     </p>
-                    <p className="text-[9px] text-slate-400 mt-0.5">Supports PNG, JPG, WEBP formats</p>
+                    <p className="text-[9px] text-slate-400 mt-0.5">Supports PNG, JPG, WEBP formats (Auto-compressed for high speed)</p>
+                  </div>
+
+                  {editUploadStatus && (
+                    <p className="text-[9.5px] font-mono text-emerald-600 bg-emerald-50/50 p-2 rounded border border-emerald-150 leading-relaxed font-semibold">
+                      ✨ {editUploadStatus}
+                    </p>
+                  )}
+
+                  {/* Highly Interactive "Add Many Image Links (URLs)" Input for Edit Modal */}
+                  <div className="space-y-1 bg-white p-2.5 rounded border border-slate-150">
+                    <label className="block text-[9.5px] font-mono font-bold uppercase tracking-wider text-slate-450">
+                      🔗 Paste & Add Multiple Image Links (URLs)
+                    </label>
+                    <div className="flex space-x-1.5 pt-1">
+                      <input
+                        type="text"
+                        value={editQuickLinkInput}
+                        onChange={(e) => setEditQuickLinkInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            const urls = parseMultipleUrls(editQuickLinkInput);
+                            if (urls.length > 0) {
+                              setEditingProduct(prev => {
+                                if (!prev) return prev;
+                                let mainImg = prev.image;
+                                const additional = [...urls];
+                                if (!mainImg) {
+                                  mainImg = additional.shift() || '';
+                                }
+                                const current = prev.images || [];
+                                return {
+                                  ...prev,
+                                  image: mainImg,
+                                  images: [...current, ...additional]
+                                };
+                              });
+                              setEditQuickLinkInput('');
+                            }
+                          }
+                        }}
+                        placeholder="Paste one or more image URLs (separated by spaces, commas, or lines) and press Enter or Add..."
+                        className="flex-1 rounded border border-slate-200 p-2 text-xs outline-none focus:border-indigo-500 font-mono text-slate-800 bg-slate-50/50"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const urls = parseMultipleUrls(editQuickLinkInput);
+                          if (urls.length > 0) {
+                            setEditingProduct(prev => {
+                              if (!prev) return prev;
+                              let mainImg = prev.image;
+                              const additional = [...urls];
+                              if (!mainImg) {
+                                mainImg = additional.shift() || '';
+                              }
+                              const current = prev.images || [];
+                              return {
+                                ...prev,
+                                image: mainImg,
+                                images: [...current, ...additional]
+                              };
+                            });
+                            setEditQuickLinkInput('');
+                          }
+                        }}
+                        className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-xs font-bold transition-all flex items-center space-x-1"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                        <span>Add</span>
+                      </button>
+                    </div>
                   </div>
 
                   {/* Previews Grid with Deletion */}
@@ -1695,23 +1939,47 @@ export const AdminPanel: React.FC = () => {
                     if (allImgs.length === 0) return null;
 
                     return (
-                      <div className="space-y-1.5 pt-2">
-                        <span className="text-[9px] font-mono text-slate-400 font-semibold block">
-                          Assigned Images ({allImgs.length}) — Click red icon to remove:
-                        </span>
-                        <div className="grid grid-cols-5 gap-2">
+                      <div className="space-y-1.5 pt-1 border-t border-slate-100">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[9.5px] font-mono text-slate-400 font-bold block uppercase">
+                            Active Gallery ({allImgs.length} Images/Links)
+                          </span>
+                          <span className="text-[8px] text-slate-400 font-mono font-bold">
+                            (Hover thumbnail to set MAIN cover or delete)
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-5 gap-2 pt-1">
                           {allImgs.map((img, idx) => (
-                            <div key={idx} className="relative group aspect-square rounded border border-slate-200 overflow-hidden bg-slate-100">
+                            <div key={idx} className="relative group aspect-square rounded border border-slate-200 overflow-hidden bg-slate-100 shadow-sm">
                               <img
                                 src={img}
                                 alt=""
                                 className="h-full w-full object-cover"
                               />
-                              {idx === 0 || img === editingProduct.image ? (
-                                <span className="absolute bottom-0 left-0 right-0 bg-indigo-600 text-white text-[7px] font-bold text-center py-0.5">
-                                  MAIN
+                              {img === editingProduct.image ? (
+                                <span className="absolute bottom-0 left-0 right-0 bg-indigo-650 text-white text-[7px] font-bold text-center py-0.5 uppercase tracking-wide">
+                                  MAIN COVER
                                 </span>
-                              ) : null}
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const filtered = allImgs.filter(item => item !== img);
+                                    setEditingProduct({
+                                      ...editingProduct,
+                                      image: img,
+                                      images: filtered
+                                    });
+                                  }}
+                                  className="absolute inset-0 bg-slate-900/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer duration-150"
+                                >
+                                  <span className="bg-white/95 text-slate-900 rounded px-1.5 py-0.5 text-[8px] font-extrabold shadow flex items-center space-x-1 hover:scale-105 active:scale-95 transition-all">
+                                    <Star className="h-2 w-2 text-amber-500 fill-amber-500" />
+                                    <span>SET MAIN</span>
+                                  </span>
+                                </button>
+                              )}
                               <button
                                 type="button"
                                 onClick={(e) => {
@@ -1731,7 +1999,7 @@ export const AdminPanel: React.FC = () => {
                                     });
                                   }
                                 }}
-                                className="absolute -top-1 -right-1 bg-rose-600 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-rose-700 shadow-sm"
+                                className="absolute top-1 right-1 bg-rose-600 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-rose-700 shadow-md cursor-pointer duration-150"
                               >
                                 <Trash2 className="h-2.5 w-2.5" />
                               </button>
@@ -1743,46 +2011,48 @@ export const AdminPanel: React.FC = () => {
                   })()}
                 </div>
 
-                <div className="space-y-2">
-                  <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400">Primary Product Image URL</label>
-                  <div className="flex items-center space-x-4">
-                    <div className="h-14 w-14 rounded-lg border border-slate-200 bg-slate-50 overflow-hidden flex-shrink-0 shadow-sm">
-                      <img 
-                        src={editingProduct.image || 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=800&auto=format&fit=crop&q=80'} 
-                        alt="Preview" 
-                        className="h-full w-full object-cover transition-opacity duration-200"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=800&auto=format&fit=crop&q=80';
-                        }}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+                  <div>
+                    <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 mb-1">Primary Product Image URL</label>
+                    <div className="flex items-center space-x-2">
+                      <div className="h-8 w-8 rounded border border-slate-200 bg-slate-50 overflow-hidden flex-shrink-0 shadow-sm">
+                        <img 
+                          src={editingProduct.image || 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=800&auto=format&fit=crop&q=80'} 
+                          alt="Preview" 
+                          className="h-full w-full object-cover"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=800&auto=format&fit=crop&q=80';
+                          }}
+                        />
+                      </div>
+                      <input
+                        type="text"
+                        required
+                        value={editingProduct.image}
+                        onChange={(e) => setEditingProduct({ ...editingProduct, image: e.target.value })}
+                        placeholder="Paste Unsplash image URL..."
+                        className="flex-1 rounded bg-slate-50 border border-slate-200 p-2 text-xs outline-none focus:bg-white font-mono text-slate-800"
                       />
                     </div>
-                    <input
-                      type="text"
-                      required
-                      value={editingProduct.image}
-                      onChange={(e) => setEditingProduct({ ...editingProduct, image: e.target.value })}
-                      placeholder="Paste Unsplash image URL..."
-                      className="flex-1 rounded bg-slate-50 border border-slate-200 p-2 text-xs outline-none focus:bg-white font-mono text-slate-800"
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 mb-1">Additional Multi-Images (Separated by newlines)</label>
+                    <textarea
+                      rows={1}
+                      value={editingProduct.images ? editingProduct.images.join('\n') : ''}
+                      onChange={(e) => {
+                        const list = e.target.value.split(/[\n,]/).map(url => url.trim()).filter(Boolean);
+                        setEditingProduct({ ...editingProduct, images: list });
+                      }}
+                      placeholder="Paste subsequent image URLs..."
+                      className="w-full rounded bg-slate-50 border border-slate-200 p-2 text-xs outline-none focus:bg-white text-slate-800 font-mono text-slate-800"
                     />
                   </div>
                 </div>
 
-                <div className="space-y-1">
-                  <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400">Additional Multi-Images (Paste one URL per line or separated by commas)</label>
-                  <textarea
-                    rows={3}
-                    value={editingProduct.images ? editingProduct.images.join('\n') : ''}
-                    onChange={(e) => {
-                      const list = e.target.value.split(/[\n,]/).map(url => url.trim()).filter(Boolean);
-                      setEditingProduct({ ...editingProduct, images: list });
-                    }}
-                    placeholder="Paste secondary image URLs..."
-                    className="w-full rounded bg-slate-50 border border-slate-200 p-2 text-xs outline-none focus:bg-white text-slate-800 font-mono text-slate-800"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400">Product Video URL (MP4 stream or YouTube link)</label>
+                <div>
+                  <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 mb-1">Product Video URL (MP4 stream or YouTube link)</label>
                   <input
                     type="text"
                     value={editingProduct.videoUrl || ''}
