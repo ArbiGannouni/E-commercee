@@ -122,14 +122,24 @@ export default async function handler(req, res) {
     else if (rem === 4) recommendedPrice = recommendedPrice + 1; // Round up to .50 or .00 ending
   }
   
+  // Cutoff Heuristics: original anchor is usually around 1.35x recommendedPrice to feel premium
+  let originalPrice = Math.round(recommendedPrice * 1.35);
+  if (originalPrice > 10) {
+    const remOrig = originalPrice % 10;
+    if (remOrig === 1 || remOrig === 2) originalPrice = originalPrice - remOrig;
+    else if (remOrig === 8 || remOrig === 9) originalPrice = originalPrice + (10 - remOrig);
+    else if (remOrig === 4) originalPrice = originalPrice + 1;
+  }
+
   const markupPercent = ((recommendedPrice - costPrice) / costPrice) * 100;
   const marginPercent = ((recommendedPrice - costPrice) / recommendedPrice) * 100;
 
   const fallbackResult = {
     recommendedPrice: Number(recommendedPrice.toFixed(2)),
+    originalPrice: Number(originalPrice.toFixed(2)),
     markupPercent: Number(markupPercent.toFixed(1)),
     marginPercent: Number(marginPercent.toFixed(1)),
-    explanation: `Calculated from AETHER Premium Heritage Heuristic. Applied an industry-standard 2.45x design markup for workspace assets to protect creative sustainability. (Set Vercel GEMINI_API_KEY environment variable for bespoke AI analysis!)`,
+    explanation: `Calculated from AETHER Premium Heritage Heuristic. Applied an industry-standard 2.45x design markup for workspace assets to protect creative sustainability, paired with a custom cutoff anchor of ${originalPrice.toFixed(2)}. (Set Vercel GEMINI_API_KEY environment variable for bespoke AI analysis!)`,
     isFallback: true
   };
 
@@ -143,7 +153,7 @@ Analyze the following product information:
 - Original Description: ${description}
 - Purchase Price (Cost, Achat TTC): ${costPrice}
 
-Your task is to calculate and recommend an optimal, well-considered Retail Price (Prix de Vente TTC).
+Your task is to calculate and recommend an optimal, well-considered Retail Price (Prix de Vente TTC), as well as an Original/MSRP Cutoff Price (Prix de référence d'origine / Prix barré) to represent standard high-end value anchors.
 Consider standard premium markup:
 - Artisan Homeware / Furniture: 2.2x to 3x markup on cost (120% to 200% markup).
 - Stationery / Small Desk Accessories: 1.8x to 2.5x markup.
@@ -152,9 +162,10 @@ Consider standard premium markup:
 
 Please calculate:
 1. Suggested Retail Price: (a realistic float rounded to a beautiful terminal number, e.g. .00 or .90). Ensure this is strictly greater than the purchasePrice.
-2. Markup Percentage: ((RetailPrice - PurchasePrice) / PurchasePrice) * 100
-3. Gross Margin: ((RetailPrice - PurchasePrice) / RetailPrice) * 100
-4. A concise, professional pricing reasoning explaining whether we are positioning this as an entry-level artisan object, style statement, or rare asset, and why the markup is justified.`;
+2. Suggested Original Reference/Cutoff Price: a standard comparison ticket price (compare-at price) that is 20% to 50% higher than the Suggested Retail Price to create luxury anchor value and offer visual discount appeal. Round it to .00 or .90 as well.
+3. Markup Percentage: ((RetailPrice - PurchasePrice) / PurchasePrice) * 100
+4. Gross Margin: ((RetailPrice - PurchasePrice) / RetailPrice) * 100
+5. A concise, professional pricing reasoning explaining whether we are positioning this as an entry-level artisan object, style statement, or rare asset, and why this retail price and original price cutoff is justified.`;
 
     const response = await aiClient.models.generateContent({
       model: 'gemini-3.5-flash',
@@ -168,6 +179,10 @@ Please calculate:
               type: Type.NUMBER,
               description: 'Recommended retail price (TTC) strictly greater than purchasePrice'
             },
+            originalPrice: {
+              type: Type.NUMBER,
+              description: 'Suggested reference/cutoff/compare-at strike-through original price (TTC) strictly greater than recommendedPrice by 20% to 50% to establish elegant discount comparison.'
+            },
             markupPercent: {
               type: Type.NUMBER,
               description: 'Markup percentage compared to purchase Price'
@@ -178,10 +193,10 @@ Please calculate:
             },
             explanation: {
               type: Type.STRING,
-              description: 'Elegant, business-logic explanation of the recommended pricing posture (2 sentences max).'
+              description: 'Elegant, business-logic explanation of the recommended pricing and cutoff strategy (2 sentences max).'
             }
           },
-          required: ['recommendedPrice', 'markupPercent', 'marginPercent', 'explanation']
+          required: ['recommendedPrice', 'originalPrice', 'markupPercent', 'marginPercent', 'explanation']
         }
       }
     });

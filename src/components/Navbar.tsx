@@ -5,8 +5,9 @@
 
 import React, { useState } from 'react';
 import { useStore } from '../state/StoreContext';
-import { ShoppingBag, LayoutDashboard, Store, Search, X, Compass, Clock, User, LogOut, Lock } from 'lucide-react';
+import { ShoppingBag, LayoutDashboard, Store, Search, X, Compass, Clock, User, LogOut, Lock, Globe } from 'lucide-react';
 import { getTheme } from '../utils/theme';
+import { getTranslation } from '../utils/translations';
 
 export const Navbar: React.FC = () => {
   const {
@@ -21,7 +22,8 @@ export const Navbar: React.FC = () => {
     settings,
     currentUser,
     currentAdminUser,
-    logoutUser
+    logoutUser,
+    updateSettings
   } = useStore();
 
   const [localSearch, setLocalSearch] = useState(searchKeyword);
@@ -29,6 +31,7 @@ export const Navbar: React.FC = () => {
 
   const cartItemsCount = cart.reduce((acc, curr) => acc + curr.quantity, 0);
   const theme = getTheme(settings.websiteTheme);
+  const t = getTranslation(settings.language);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,7 +88,7 @@ export const Navbar: React.FC = () => {
             <form onSubmit={handleSearchSubmit} className="relative w-full" id="search-form">
               <input
                 type="text"
-                placeholder="Search design objects, desk risers, brass lamps..."
+                placeholder={t.search_placeholder}
                 value={localSearch}
                 onChange={(e) => {
                   setLocalSearch(e.target.value);
@@ -112,13 +115,13 @@ export const Navbar: React.FC = () => {
             <div className="flex items-center space-x-2 text-xs font-mono text-slate-400">
               <span className={`text-slate-500 font-semibold text-[10px] tracking-wider uppercase px-2 py-0.5 rounded ${isDark ? 'bg-slate-800' : 'bg-slate-100'}`}>ROOT</span>
               <span>/</span>
-              <span className={`font-semibold tracking-tight text-[11px] ${theme.accentText}`}>SECURE_CHECKOUT_GATEWAY</span>
+              <span className={`font-semibold tracking-tight text-[11px] ${theme.accentText}`}>{settings.language === 'fr' ? 'PORTAIL_PAIEMENT_SECURISE' : 'SECURE_CHECKOUT_GATEWAY'}</span>
             </div>
           ) : (
             <div className="flex items-center space-x-2 text-xs font-mono text-slate-400">
               <span className={`text-slate-500 font-semibold text-[10px] tracking-wider uppercase px-2 py-0.5 rounded ${isDark ? 'bg-slate-800' : 'bg-slate-100'}`}>ROOT</span>
               <span>/</span>
-              <span className={`font-semibold tracking-tight text-[11px] ${theme.accentText}`}>ADMIN_CONSOLE_V3.0_LIVE</span>
+              <span className={`font-semibold tracking-tight text-[11px] ${theme.accentText}`}>{settings.language === 'fr' ? 'CONSOLE_ADMIN_V3.0_LIVE' : 'ADMIN_CONSOLE_V3.0_LIVE'}</span>
             </div>
           )}
         </div>
@@ -143,12 +146,12 @@ export const Navbar: React.FC = () => {
               className={`flex items-center space-x-1.5 rounded-full px-4 py-2 text-xs font-semibold tracking-tight border transition-all duration-300 shadow-sm ${
                 isDark 
                   ? 'bg-slate-905 border-slate-800 text-slate-205 hover:bg-slate-800' 
-                  : 'bg-slate-100 border-slate-202 text-slate-800 hover:bg-slate-200'
+                   : 'bg-slate-100 border-slate-202 text-slate-800 hover:bg-slate-200'
               }`}
               id="view-toggle-btn"
             >
               <Store className="h-3.5 w-3.5" />
-              <span>View Storefront</span>
+              <span>{t.view_storefront}</span>
             </button>
           )}
 
@@ -202,16 +205,34 @@ export const Navbar: React.FC = () => {
                 id="navbar-portal-signin-btn"
               >
                 <User className="h-3.5 w-3.5" />
-                <span className="hidden min-[400px]:inline">Sign In</span>
+                <span className="hidden min-[400px]:inline">{t.sign_in}</span>
               </button>
             )}
           </div>
+
+          {/* Quick Language Toggle */}
+          <button
+            onClick={() => {
+              const nextLang = settings.language === 'fr' ? 'en' : 'fr';
+              updateSettings({ language: nextLang });
+            }}
+            className={`flex items-center space-x-1.5 px-3 py-2 rounded-full border text-[10.5px] font-mono font-bold tracking-tight uppercase hover:bg-slate-105 active:scale-95 transition-all select-none cursor-pointer ${
+              isDark 
+                ? 'border-slate-800 text-slate-300 hover:bg-slate-900' 
+                : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+            }`}
+            title={settings.language === 'fr' ? "Switch to English" : "Passer au Français"}
+            id="language-switch-btn"
+          >
+            <Globe className="h-3.5 w-3.5 text-slate-450" />
+            <span>{settings.language === 'fr' ? 'FR' : 'EN'}</span>
+          </button>
 
           {/* Order Tracking Quick shortcut */}
           <button
             onClick={() => {
               setView('shop');
-              const trackingCode = prompt('Enter your 4-digit Order ID (e.g. 9824):');
+              const trackingCode = prompt(settings.language === 'fr' ? 'Entrez votre identifiant de commande à 4 chiffres (ex: 9824):' : 'Enter your 4-digit Order ID (e.g. 9824):');
               if (trackingCode) {
                 const query = trackingCode.trim().toUpperCase();
                 const matchedCode = query.startsWith('ORD-') ? query : `ORD-${query}`;
@@ -219,7 +240,7 @@ export const Navbar: React.FC = () => {
               }
             }}
             className="rounded-full border border-slate-200 p-2.5 text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors hidden sm:flex"
-            title="Track Order"
+            title={t.track_order}
             id="order-tracking-btn"
           >
             <Clock className="h-4 w-4" />

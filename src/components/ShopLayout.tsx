@@ -9,6 +9,7 @@ import { Product, Order, OrderStatus } from '../types';
 import { Star, SlidersHorizontal, ArrowLeft, ShieldAlert, Check, ShoppingCart, Clock, User, Calendar, MapPin, CreditCard, ChevronDown, ChevronUp, Package, Printer, ExternalLink, Sliders, MessageCircle, MessageSquare } from 'lucide-react';
 import { getTheme } from '../utils/theme';
 import { SpendingChart } from './SpendingChart';
+import { getTranslation } from '../utils/translations';
 
 interface ProductSkeletonProps {
   themeType: string;
@@ -178,6 +179,7 @@ export const ShopLayout: React.FC = () => {
   }, [currentCategory, searchKeyword]);
 
   const theme = getTheme(settings.websiteTheme);
+  const t = getTranslation(settings.language);
 
   // Filter products by category and active search term
   const filteredProducts = products.filter((prod) => {
@@ -605,7 +607,7 @@ export const ShopLayout: React.FC = () => {
                 : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
-            📦 Browse Collection
+            📦 {t.browse_collection_btn || 'Browse Collection'}
           </button>
           <button
             onClick={() => {
@@ -618,7 +620,7 @@ export const ShopLayout: React.FC = () => {
                 : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
-            🕰️ Order History
+            🕰️ {t.order_history_btn || 'Order History'}
             {userOrders.length > 0 && (
               <span className="px-1.5 py-0.5 text-[9px] font-bold font-mono bg-indigo-150 text-indigo-805 dark:bg-indigo-950/50 dark:text-indigo-350 rounded-full animate-bounce">
                 {userOrders.length}
@@ -648,14 +650,16 @@ export const ShopLayout: React.FC = () => {
                     : `${theme.cardBg} ${theme.textSecondary} ${theme.borderColor} hover:bg-slate-50 hover:text-current shadow-sm`
                 }`}
               >
-                {cat}
+                {cat === 'All' ? t.all_categories : cat}
               </button>
             ))}
           </div>
         </div>
 
         <div className="text-right text-[11px] text-slate-400 font-mono uppercase tracking-wider">
-          DISPLAYING {filteredProducts.length} OF {products.length} OBJECTS
+          {settings.language === 'fr' 
+            ? `AFFICHAGE DE ${filteredProducts.length} SUR ${products.length} OBJETS` 
+            : `DISPLAYING ${filteredProducts.length} OF ${products.length} OBJECTS`}
         </div>
       </div>
 
@@ -673,9 +677,13 @@ export const ShopLayout: React.FC = () => {
       ) : filteredProducts.length === 0 ? (
         <div className={`py-24 text-center rounded-2xl border border-dashed ${theme.borderColor} ${theme.cardBg}`} id="no-search-results">
           <div className="h-10 w-10 text-slate-300 mx-auto mb-3">⎋</div>
-          <h3 className="font-display text-sm font-bold text-current">No objects align with your parameters</h3>
+          <h3 className="font-display text-sm font-bold text-current">
+            {settings.language === 'fr' ? 'Aucun objet ne correspond à vos paramètres' : 'No objects align with your parameters'}
+          </h3>
           <p className="text-xs text-slate-400 mt-1 max-w-xs mx-auto">
-            Try adjusting your search terms or choosing a different architectural categorization filter.
+            {settings.language === 'fr' 
+              ? "Essayez d'ajuster vos termes de recherche ou d'élargir vos filtres de catégories." 
+              : "Try adjusting your search terms or choosing a different architectural categorization filter."}
           </p>
         </div>
       ) : (
@@ -819,7 +827,7 @@ export const ShopLayout: React.FC = () => {
                           className={`w-full flex items-center justify-center space-x-1 rounded-xl ${theme.accentBg} text-white py-1.5 sm:py-2.5 text-[8.5px] sm:text-[9.5px] font-bold uppercase tracking-wider hover:opacity-90 transition-opacity cursor-pointer shadow-sm`}
                         >
                           <ShoppingCart className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-                          <span className="truncate">ACQUIRE</span>
+                          <span className="truncate">{settings.language === 'fr' ? 'AJOUTER' : 'ADD TO LIST'}</span>
                         </button>
                       </div>
                     )}
@@ -955,10 +963,10 @@ export const ShopLayout: React.FC = () => {
                           className={`rounded-xl px-5 py-2.5 text-[9.5px] font-bold uppercase tracking-widest text-white shadow transition-all active:scale-97 cursor-pointer flex items-center space-x-1 ${theme.accentBg} ${theme.accentHoverBg}`}
                         >
                           <ShoppingCart className="h-3 w-3" />
-                          <span>ENGAGE</span>
+                          <span>{settings.language === 'fr' ? 'AJOUTER' : 'ADD TO LIST'}</span>
                         </button>
                       ) : (
-                        <span className="text-[10px] text-slate-400 font-bold uppercase">OUT OF STOCK</span>
+                        <span className="text-[10px] text-slate-400 font-bold uppercase">{settings.language === 'fr' ? 'ÉPUISÉ' : 'OUT OF STOCK'}</span>
                       )}
                     </div>
                   </div>
@@ -1012,7 +1020,7 @@ export const ShopLayout: React.FC = () => {
                         className={`w-full flex items-center justify-center space-x-1 sm:space-x-1.5 rounded-xl ${theme.accentBg} text-white py-1.5 sm:py-3 text-[8.5px] sm:text-[10px] font-bold uppercase tracking-widest ${theme.accentHoverBg} transition-all shadow-md active:scale-98`}
                       >
                         <ShoppingCart className="h-3 w-3" />
-                        <span className="truncate">ENGAGE</span>
+                        <span className="truncate">{settings.language === 'fr' ? 'AJOUTER' : 'ADD TO LIST'}</span>
                       </button>
                     </div>
                   )}
@@ -1067,19 +1075,19 @@ export const ShopLayout: React.FC = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" id="order-history-counters">
             
             <div className={`p-5 rounded-2xl border ${theme.cardBg} ${theme.borderColor} shadow-sm`}>
-              <div className="flex items-center justify-between pb-2 mb-2 border-b border-current/10">
-                <span className="text-[10px] font-mono tracking-wider text-slate-400 uppercase font-semibold">Total Acquisitions</span>
+              <div className="flex items-center justify-between pb-2 mb-2 border-b border-b-current/10">
+                <span className="text-[10px] font-mono tracking-wider text-slate-400 uppercase font-semibold">{t.total_acquisitions}</span>
                 <span className="p-1 rounded bg-indigo-50 dark:bg-indigo-950/40 text-indigo-650 dark:text-indigo-400">
                   <Package className="h-4 w-4" />
                 </span>
               </div>
               <p className="text-xl font-bold font-display text-current">{userOrders.length}</p>
-              <p className="text-[9.5px] text-slate-400 mt-1">Confirmed design orders</p>
+              <p className="text-[9.5px] text-slate-400 mt-1">{t.confirmed_design_orders}</p>
             </div>
 
             <div className={`p-5 rounded-2xl border ${theme.cardBg} ${theme.borderColor} shadow-sm`}>
-              <div className="flex items-center justify-between pb-2 mb-2 border-b border-current/10">
-                <span className="text-[10px] font-mono tracking-wider text-slate-400 uppercase font-semibold">Consolidated Spent</span>
+              <div className="flex items-center justify-between pb-2 mb-2 border-b border-b-current/10">
+                <span className="text-[10px] font-mono tracking-wider text-slate-400 uppercase font-semibold">{t.consolidated_spent}</span>
                 <span className="p-1 rounded bg-emerald-50 dark:bg-emerald-950/40 text-emerald-650 dark:text-emerald-400">
                   <CreditCard className="h-4 w-4" />
                 </span>
@@ -1087,12 +1095,12 @@ export const ShopLayout: React.FC = () => {
               <p className="text-xl font-bold font-mono text-current">
                 {settings.baseCurrency}{userOrders.reduce((sum, o) => sum + o.total, 0).toFixed(2)}
               </p>
-              <p className="text-[9.5px] text-slate-400 mt-1">Acquisition capital volume</p>
+              <p className="text-[9.5px] text-slate-400 mt-1">{t.acquisition_capital_volume}</p>
             </div>
 
             <div className={`p-5 rounded-2xl border ${theme.cardBg} ${theme.borderColor} shadow-sm`}>
-              <div className="flex items-center justify-between pb-2 mb-2 border-b border-current/10">
-                <span className="text-[10px] font-mono tracking-wider text-slate-400 uppercase font-semibold">Average Order Value</span>
+              <div className="flex items-center justify-between pb-2 mb-2 border-b border-b-current/10">
+                <span className="text-[10px] font-mono tracking-wider text-slate-400 uppercase font-semibold">{t.average_order_value}</span>
                 <span className="p-1 rounded bg-amber-50 dark:bg-amber-950/40 text-amber-650 dark:text-amber-400">
                   <Sliders className="h-4 w-4" />
                 </span>
@@ -1102,12 +1110,12 @@ export const ShopLayout: React.FC = () => {
                   ? (userOrders.reduce((sum, o) => sum + o.total, 0) / userOrders.length).toFixed(2)
                   : '0.00'}
               </p>
-              <p className="text-[9.5px] text-slate-400 mt-1">Mean receipt value</p>
+              <p className="text-[9.5px] text-slate-400 mt-1">{t.mean_receipt_value}</p>
             </div>
 
             <div className={`p-5 rounded-2xl border ${theme.cardBg} ${theme.borderColor} shadow-sm`}>
-              <div className="flex items-center justify-between pb-2 mb-2 border-b border-current/10">
-                <span className="text-[10px] font-mono tracking-wider text-slate-400 uppercase font-semibold">Active Consignments</span>
+              <div className="flex items-center justify-between pb-2 mb-2 border-b border-b-current/10">
+                <span className="text-[10px] font-mono tracking-wider text-slate-400 uppercase font-semibold">{t.active_consignments}</span>
                 <span className="p-1 rounded bg-sky-50 dark:bg-sky-950/40 text-sky-650 dark:text-sky-400">
                   <Clock className="h-4 w-4" />
                 </span>
@@ -1115,7 +1123,7 @@ export const ShopLayout: React.FC = () => {
               <p className="text-xl font-bold font-display text-current">
                 {userOrders.filter(o => ['Pending', 'Shipped'].includes(o.status)).length}
               </p>
-              <p className="text-[9.5px] text-slate-400 mt-1">In transit or preparing</p>
+              <p className="text-[9.5px] text-slate-400 mt-1">{t.in_transit_or_preparing}</p>
             </div>
 
           </div>
@@ -1132,7 +1140,7 @@ export const ShopLayout: React.FC = () => {
                 type="text"
                 value={orderSearchQuery}
                 onChange={(e) => setOrderSearchQuery(e.target.value)}
-                placeholder="Search history by Order ID code or Item descriptions..."
+                placeholder={t.search_history_placeholder || "Search history by Order ID code or Item descriptions..."}
                 className="w-full pl-9 pr-4 py-2 text-xs font-semibold rounded-xl border border-slate-205 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-current focus:bg-white dark:focus:bg-slate-900 focus:outline-none focus:ring-1 focus:ring-indigo-650/40"
               />
               {orderSearchQuery && (
@@ -1140,15 +1148,21 @@ export const ShopLayout: React.FC = () => {
                   onClick={() => setOrderSearchQuery('')} 
                   className="absolute right-3 top-2 text-[10px] text-slate-500 hover:text-slate-850 dark:text-slate-400 border border-slate-200 hover:border-slate-350 bg-white dark:bg-slate-800 dark:border-slate-700 px-1.5 py-0.5 rounded cursor-pointer"
                 >
-                  Clear
+                  {t.clear || 'Clear'}
                 </button>
               )}
             </div>
 
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="text-[10px] font-mono tracking-wider text-slate-400 uppercase font-bold mr-1.5">Status Filter:</span>
+            <div className="flex flex-wrap items-center gap-1.5 font-sans">
+              <span className="text-[10px] font-mono tracking-wider text-slate-400 uppercase font-bold mr-1.5">{t.status_filter}</span>
               {(['All', 'Pending', 'Shipped', 'Delivered', 'Cancelled'] as const).map((status) => {
                 const isActive = orderStatusFilter === status;
+                const statusName = settings.language === 'fr' ? (
+                  status === 'All' ? 'Tout' :
+                  status === 'Pending' ? 'En attente' :
+                  status === 'Shipped' ? 'Expédiée' :
+                  status === 'Delivered' ? 'Livrée' : 'Annulée'
+                ) : status;
                 return (
                   <button
                     key={status}
@@ -1159,7 +1173,7 @@ export const ShopLayout: React.FC = () => {
                         : 'bg-slate-50 dark:bg-slate-800 text-slate-500 hover:text-slate-850 dark:hover:text-white border-slate-205 dark:border-slate-800'
                     }`}
                   >
-                    {status}
+                    {statusName}
                   </button>
                 );
               })}
@@ -1171,11 +1185,11 @@ export const ShopLayout: React.FC = () => {
           {filteredUserOrders.length === 0 ? (
             <div className={`py-16 text-center rounded-2xl border border-dashed ${theme.borderColor} ${theme.cardBg}`} id="orders-catalog-empty">
               <p className="text-xl mb-2">📜</p>
-              <h3 className="font-display text-sm font-bold text-current">No ledger matches active filters</h3>
+              <h3 className="font-display text-sm font-bold text-current">{t.no_ledger_matches}</h3>
               <p className="text-[10.5px] text-slate-400 mt-1 max-w-sm mx-auto font-sans">
                 {userOrders.length === 0 
-                  ? "You have not finalized any acquisitions yet. Place your first order during checkout to populate this console ledger!"
-                  : "Try clearing search keywords or status filter variables to explore history entries."}
+                  ? t.no_acquisitions_yet
+                  : t.try_clearing_filters}
               </p>
               {userOrders.length > 0 && (
                 <button
@@ -1185,7 +1199,7 @@ export const ShopLayout: React.FC = () => {
                   }}
                   className="mt-4 px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-[10.5px] font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 cursor-pointer"
                 >
-                  Show All Orders
+                  {t.show_all_orders}
                 </button>
               )}
             </div>
@@ -1227,19 +1241,23 @@ export const ShopLayout: React.FC = () => {
                               {order.id}
                             </span>
                             <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold border ${statusTheme}`}>
-                              {order.status.toUpperCase()}
+                              {(settings.language === 'fr' ? (
+                                order.status === 'Pending' ? 'En attente' :
+                                order.status === 'Shipped' ? 'Expédiée' :
+                                order.status === 'Delivered' ? 'Livrée' : 'Annulée'
+                              ) : order.status).toUpperCase()}
                             </span>
                           </div>
                           <div className="flex items-center gap-1.5 text-slate-400 mt-1 font-mono text-[9px]">
                             <Calendar className="h-3 w-3" />
-                            <span>{new Date(order.date).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                            <span>{new Date(order.date).toLocaleDateString(settings.language === 'fr' ? 'fr-FR' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
                           </div>
                         </div>
                       </div>
 
                       <div className="flex items-center justify-between md:justify-end gap-6 border-t md:border-t-0 pt-3 md:pt-0 border-current/10">
                         <div className="text-left md:text-right font-mono">
-                          <span className="text-[9px] text-slate-400 dark:text-slate-500 block uppercase font-mono">Ledger Total</span>
+                          <span className="text-[9px] text-slate-400 dark:text-slate-500 block uppercase font-mono">{t.ledger_total || 'Ledger Total'}</span>
                           <span className="text-xs font-black text-current">
                             {settings.baseCurrency}{order.total.toFixed(2)}
                           </span>
@@ -1247,12 +1265,12 @@ export const ShopLayout: React.FC = () => {
                         <div className="p-1 px-2.5 rounded-lg border border-slate-205 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900 group hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 hover:text-slate-800 dark:hover:text-white transition-colors">
                           {isExpanded ? (
                             <div className="flex items-center gap-1">
-                              <span className="text-[9px] font-bold">Compress</span>
+                              <span className="text-[9px] font-bold">{t.compress || 'Compress'}</span>
                               <ChevronUp className="h-3.5 w-3.5" />
                             </div>
                           ) : (
                             <div className="flex items-center gap-1">
-                              <span className="text-[9px] font-bold font-sans">Details</span>
+                              <span className="text-[9px] font-bold font-sans">{t.details || 'Details'}</span>
                               <ChevronDown className="h-3.5 w-3.5" />
                             </div>
                           )}
@@ -1268,12 +1286,12 @@ export const ShopLayout: React.FC = () => {
                         {/* 1. Progress Step Log-Timeline */}
                         <div>
                           <h4 className="text-[10px] font-mono font-bold uppercase tracking-widest text-slate-400 mb-3 flex items-center">
-                            <Package className="h-3.5 w-3.5 text-indigo-600 mr-1.5" /> Routing Stepper Logs
+                            <Package className="h-3.5 w-3.5 text-indigo-600 mr-1.5" /> {t.routing_stepper_logs}
                           </h4>
                           
                           {order.status === 'Cancelled' ? (
-                            <div className="p-3.5 bg-rose-50/60 dark:bg-rose-950/10 border border-rose-100 dark:border-rose-900/30 rounded-xl text-rose-800 dark:text-rose-350 font-medium">
-                              ❌ This consignment receipt has been marked Cancelled. The system suspended delivery routing.
+                            <div className="p-3.5 bg-rose-50/60 dark:bg-rose-950/10 border border-rose-100 dark:border-rose-900/30 rounded-xl text-rose-800 dark:text-rose-350 font-medium font-sans">
+                              {t.order_cancelled_msg}
                             </div>
                           ) : (
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 font-mono">
@@ -1282,8 +1300,8 @@ export const ShopLayout: React.FC = () => {
                               <div className="p-3 bg-emerald-50/40 dark:bg-emerald-950/10 border border-emerald-100/50 dark:border-emerald-900/20 rounded-xl flex items-center space-x-2.5">
                                 <span className="h-5 w-5 bg-emerald-100 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-300 rounded-full flex items-center justify-center font-bold text-[9px]">✓</span>
                                 <div>
-                                  <div className="font-bold text-emerald-800 dark:text-emerald-400 uppercase text-[9px]">Aether Receipt Created</div>
-                                  <div className="text-[8px] text-slate-400 mt-0.5">Order verified & logged</div>
+                                  <div className="font-bold text-emerald-800 dark:text-emerald-400 uppercase text-[9px]">{t.receipt_created || 'Aether Receipt Created'}</div>
+                                  <div className="text-[8px] text-slate-400 mt-0.5">{t.order_verified_logged || 'Order verified & logged'}</div>
                                 </div>
                               </div>
 
@@ -1292,16 +1310,16 @@ export const ShopLayout: React.FC = () => {
                                 <div className="p-3 bg-indigo-50/40 dark:bg-indigo-950/10 border border-indigo-100/50 dark:border-indigo-900/20 rounded-xl flex items-center space-x-2.5">
                                   <span className="h-5 w-5 bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-300 rounded-full flex items-center justify-center font-bold text-[9px]">✓</span>
                                   <div>
-                                    <div className="font-bold text-indigo-800 dark:text-indigo-400 uppercase text-[9px]">Dispatched Carrier</div>
-                                    <div className="text-[8px] text-slate-400 mt-0.5">In transit via Courier API</div>
+                                    <div className="font-bold text-indigo-800 dark:text-indigo-400 uppercase text-[9px]">{t.dispatched_carrier || 'Dispatched Carrier'}</div>
+                                    <div className="text-[8px] text-slate-400 mt-0.5">{t.in_transit_courier || 'In transit via Courier API'}</div>
                                   </div>
                                 </div>
                               ) : (
                                 <div className="p-3 bg-slate-50/50 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-800 rounded-xl flex items-center space-x-2.5 opacity-60">
                                   <span className="h-5 w-5 bg-slate-100 dark:bg-slate-800 text-slate-400 rounded-full flex items-center justify-center font-bold text-[9px]">2</span>
                                   <div>
-                                    <div className="font-bold text-slate-500 uppercase text-[9px]">Vessel Logistics Dispatch</div>
-                                    <div className="text-[8px] text-slate-400 mt-0.5">Awaiting custom assembly</div>
+                                    <div className="font-bold text-slate-500 uppercase text-[9px]">{t.vessel_logistics_dispatch || 'Vessel Logistics Dispatch'}</div>
+                                    <div className="text-[8px] text-slate-400 mt-0.5">{t.awaiting_custom_assembly || 'Awaiting custom assembly'}</div>
                                   </div>
                                 </div>
                               )}
@@ -1311,15 +1329,15 @@ export const ShopLayout: React.FC = () => {
                                 <div className="p-3 bg-emerald-50/40 dark:bg-emerald-950/10 border border-emerald-100/50 dark:border-emerald-900/20 rounded-xl flex items-center space-x-2.5">
                                   <span className="h-5 w-5 bg-emerald-100 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-300 rounded-full flex items-center justify-center font-bold text-[9px]">✓</span>
                                   <div>
-                                    <div className="font-bold text-emerald-800 dark:text-emerald-400 uppercase text-[9px]">Consignee Dropoff Compliant</div>
-                                    <div className="text-[8px] text-slate-400 mt-0.5">Signed for & secure</div>
+                                    <div className="font-bold text-emerald-800 dark:text-emerald-400 uppercase text-[9px]">{t.consignee_dropoff_compliant || 'Consignee Dropoff Compliant'}</div>
+                                    <div className="text-[8px] text-slate-400 mt-0.5">{t.signed_secure || 'Signed for & secure'}</div>
                                   </div>
                                 </div>
                               ) : (
                                 <div className="p-3 bg-slate-50/50 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-800 rounded-xl flex items-center space-x-2.5 opacity-60">
                                   <span className="h-5 w-5 bg-slate-100 dark:bg-slate-800 text-slate-400 rounded-full flex items-center justify-center font-bold text-[9px]">3</span>
                                   <div>
-                                    <div className="font-bold text-slate-500 uppercase text-[9px]">Signed Distribution Return</div>
+                                    <div className="font-bold text-slate-500 uppercase text-[9px]">{t.signed_distribution_return || 'Signed Distribution Return'}</div>
                                     <div className="text-[8px] text-slate-400 mt-0.5">Awaiting depot dropoff</div>
                                   </div>
                                 </div>
@@ -1332,7 +1350,7 @@ export const ShopLayout: React.FC = () => {
                         {/* 2. List of Line Items */}
                         <div className="space-y-3">
                           <h4 className="text-[10px] font-mono font-bold uppercase tracking-widest text-slate-400 flex items-center">
-                            <Package className="h-3.5 w-3.5 text-indigo-600 mr-1.5" /> Itemized Cargo Inventory
+                            <Package className="h-3.5 w-3.5 text-indigo-600 mr-1.5" /> {t.itemized_cargo_inventory}
                           </h4>
                           <div className="border border-current/10 divide-y divide-current/10 rounded-xl overflow-hidden">
                             {order.items.map((item) => {
@@ -1368,7 +1386,7 @@ export const ShopLayout: React.FC = () => {
                                         {item.productName}
                                       </p>
                                       <p className="text-[9.5px] font-mono text-slate-400">
-                                        Qty: {item.quantity} × {settings.baseCurrency}{item.price.toFixed(2)}
+                                        {t.qty || "Qty"}: {item.quantity} × {settings.baseCurrency}{item.price.toFixed(2)}
                                       </p>
                                     </div>
                                   </div>
@@ -1387,7 +1405,7 @@ export const ShopLayout: React.FC = () => {
                           {/* Col 1: Destination Shipping */}
                           <div>
                             <h4 className="text-[10px] font-mono font-bold uppercase tracking-widest text-slate-400 mb-2.5 flex items-center">
-                              <MapPin className="h-3.5 w-3.5 text-indigo-600 mr-1.5" /> Shipping Address
+                              <MapPin className="h-3.5 w-3.5 text-indigo-600 mr-1.5" /> {t.shipping_address}
                             </h4>
                             <div className="p-4 rounded-xl border border-current/10 bg-slate-50/15 text-xs leading-relaxed">
                               <p className="font-bold text-slate-800 dark:text-zinc-100">{order.customerName}</p>
@@ -1395,7 +1413,7 @@ export const ShopLayout: React.FC = () => {
                               <p className="text-slate-550 dark:text-slate-400">{order.shippingAddress.city}, {order.shippingAddress.zipCode}</p>
                               <p className="text-slate-550 dark:text-slate-400 font-medium">{order.shippingAddress.country}</p>
                               <div className="mt-3 text-[9px] text-slate-400 font-mono">
-                                Registered tracking target verified.
+                                {t.registered_tracking_verified}
                               </div>
                             </div>
                           </div>
@@ -1403,34 +1421,40 @@ export const ShopLayout: React.FC = () => {
                           {/* Col 2: Cost Breakdown Ledger */}
                           <div>
                             <h4 className="text-[10px] font-mono font-bold uppercase tracking-widest text-slate-400 mb-2.5 flex items-center">
-                              <CreditCard className="h-3.5 w-3.5 text-indigo-600 mr-1.5" /> Ledger Calculation
+                              <CreditCard className="h-3.5 w-3.5 text-indigo-600 mr-1.5" /> {t.ledger_calculation}
                             </h4>
                             <div className="p-4 rounded-xl border border-current/10 bg-slate-50/15 text-slate-500 dark:text-slate-450 font-mono text-xs space-y-1.5">
                               <div className="flex justify-between">
-                                <span>Subtotal</span>
+                                <span>{t.subtotal || "Subtotal"}</span>
                                 <span className="font-medium text-slate-900 dark:text-white">{settings.baseCurrency}{order.subtotal.toFixed(2)}</span>
                               </div>
                               {order.discount > 0 && (
                                 <div className="flex justify-between text-rose-600 font-bold">
-                                  <span>Discount ({order.promoCode || 'PROMO'})</span>
+                                  <span>{settings.language === 'fr' ? 'Remise' : 'Discount'} ({order.promoCode || 'PROMO'})</span>
                                   <span>-{settings.baseCurrency}{order.discount.toFixed(2)}</span>
                                 </div>
                               )}
                               <div className="flex justify-between">
-                                <span>Shipping Carrier Fee</span>
+                                <span>{t.shipping_carrier_fee}</span>
                                 <span className="font-medium text-slate-900 dark:text-white">{settings.baseCurrency}{order.shipping.toFixed(2)}</span>
                               </div>
                               <div className="flex justify-between">
-                                <span>Custom / Trade Tax</span>
+                                <span>{t.custom_trade_tax}</span>
                                 <span className="font-medium text-slate-900 dark:text-white">{settings.baseCurrency}{order.tax.toFixed(2)}</span>
                               </div>
                               <div className="flex justify-between pt-1.5 border-t border-current/10 text-xs font-bold text-slate-900 dark:text-white">
-                                <span>Consolidated Total</span>
+                                <span>{t.consolidated_total}</span>
                                 <span>{settings.baseCurrency}{order.total.toFixed(2)}</span>
                               </div>
                               <div className="pt-2 text-[8px] text-slate-450 flex items-center justify-between">
-                                <span>Method: <strong className="text-slate-500">{order.paymentMethod}</strong></span>
-                                <span>STATUS: <strong className="text-indigo-600 dark:text-indigo-400 uppercase">{order.status}</strong></span>
+                                <span>{t.method_label || "Method"}: <strong className="text-slate-500">{order.paymentMethod}</strong></span>
+                                <span>{t.status_label || "STATUS"}: <strong className="text-indigo-600 dark:text-indigo-400 uppercase">
+                                  {settings.language === 'fr' ? (
+                                    order.status === 'Pending' ? 'En attente' :
+                                    order.status === 'Shipped' ? 'Expédiée' :
+                                    order.status === 'Delivered' ? 'Livrée' : 'Annulée'
+                                  ) : order.status}
+                                </strong></span>
                               </div>
                             </div>
                           </div>
@@ -1439,10 +1463,10 @@ export const ShopLayout: React.FC = () => {
                           <div className="flex flex-col justify-between">
                             <div>
                               <h4 className="text-[10px] font-mono font-bold uppercase tracking-widest text-slate-400 mb-2.5 flex items-center">
-                                <Sliders className="h-3.5 w-3.5 text-indigo-600 mr-1.5" /> Discharge Controls
+                                <Sliders className="h-3.5 w-3.5 text-indigo-600 mr-1.5" /> {t.discharge_controls}
                               </h4>
                               <p className="text-[10px] text-slate-400 leading-normal mb-4 font-sans">
-                                Select actions relative to this transaction sheet. You can locate active progress in map routing, request duplicate digital bills of lading, or replicate acquisitions.
+                                {t.discharge_help_desc}
                               </p>
                             </div>
 
@@ -1459,10 +1483,10 @@ export const ShopLayout: React.FC = () => {
                                       }
                                     }, 100);
                                   }}
-                                  className="w-full flex items-center justify-center space-x-1.5 rounded-xl border border-slate-205 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-305 py-2 hover:bg-slate-50 dark:hover:bg-slate-900 text-[10px] uppercase font-bold transition-all cursor-pointer shadow-sm"
+                                  className="w-full flex items-center justify-center space-x-1.5 rounded-xl border border-slate-205 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-355 py-2 hover:bg-slate-50 dark:hover:bg-slate-900 text-[10px] uppercase font-bold transition-all cursor-pointer shadow-sm"
                                 >
                                   <ExternalLink className="h-3 w-3" />
-                                  <span>Live Satellite Route</span>
+                                  <span>{t.live_satellite_route}</span>
                                 </button>
                               )}
 
@@ -1480,7 +1504,7 @@ export const ShopLayout: React.FC = () => {
                                 className={`w-full flex items-center justify-center space-x-1.5 rounded-xl ${theme.accentBg} text-white py-2 hover:opacity-90 text-[10px] uppercase font-bold transition-all cursor-pointer shadow-md`}
                               >
                                 <ShoppingCart className="h-3 w-3" />
-                                <span>Re-Order Collection</span>
+                                <span>{t.re_order_collection}</span>
                               </button>
 
                               <button
@@ -1488,7 +1512,7 @@ export const ShopLayout: React.FC = () => {
                                 className="w-full flex items-center justify-center space-x-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/80 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 py-2 text-[10px] uppercase font-bold transition-all cursor-pointer"
                               >
                                 <Printer className="h-3 w-3" />
-                                <span>Examine Bill Invoice</span>
+                                <span>{t.examine_bill_invoice}</span>
                               </button>
                             </div>
 
@@ -1629,7 +1653,7 @@ export const ShopLayout: React.FC = () => {
                     className={`flex-1 rounded-xl py-3.5 text-center text-xs font-bold uppercase tracking-widest text-white disabled:opacity-40 transition-all active:scale-97 shadow-md ${theme.accentBg} ${theme.accentHoverBg}`}
                     disabled={activeProductDetail.stock <= 0}
                   >
-                    {activeProductDetail.stock <= 0 ? 'Depleted' : 'Incorporate in Drawer'}
+                    {activeProductDetail.stock <= 0 ? (t.depleted_label || 'Depleted') : (t.incorporate_in_drawer || 'Incorporate in Drawer')}
                   </button>
                 </div>
               </div>
@@ -1646,8 +1670,8 @@ export const ShopLayout: React.FC = () => {
             <Check className="h-4 w-4 text-emerald-400" />
           </div>
           <div>
-            <span className="block text-xs font-bold text-white">Acquisition added to selection</span>
-            <span className="block text-[10px] text-slate-400 font-mono">Deductions applied dynamically</span>
+            <span className="block text-xs font-bold text-white">{t.item_added_notification || "Acquisition added to selection"}</span>
+            <span className="block text-[10px] text-slate-400 font-mono">{t.deductions_applied_notification || "Deductions applied dynamically"}</span>
           </div>
         </div>
       )}
@@ -1669,36 +1693,36 @@ export const ShopLayout: React.FC = () => {
             <div className="border-b-2 border-dashed border-slate-200 pb-5 mb-5 space-y-1.5">
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-bold text-indigo-650 tracking-wider font-mono">AETHER OBJECT LABS</span>
-                <span className="text-[9px] font-mono text-slate-400 bg-slate-100 px-2 py-0.5 rounded">ORIGINAL BILL RECEIPT</span>
+                <span className="text-[9px] font-mono text-slate-400 bg-slate-100 px-2 py-0.5 rounded">{t.original_bill_receipt || 'ORIGINAL BILL RECEIPT'}</span>
               </div>
-              <h2 className="font-display text-base font-black tracking-tight uppercase">Acquisitions Invoice Ledger</h2>
-              <p className="text-[10px] text-slate-505 text-slate-500">Automated control node system receipt dispatched compliant with international trade protocols.</p>
+              <h2 className="font-display text-base font-black tracking-tight uppercase">{t.acquisitions_invoice_ledger || 'Acquisitions Invoice Ledger'}</h2>
+              <p className="text-[10px] text-slate-505 text-slate-500">{t.automated_control_node_msg}</p>
             </div>
 
             {/* Bill Summary Information */}
             <div className="grid grid-cols-2 gap-4 pb-4 border-b border-slate-100 text-[10px] leading-relaxed">
               <div>
-                <span className="text-slate-400 font-mono block text-[9px]">CONSIGNEE PROFILE</span>
+                <span className="text-slate-400 font-mono block text-[9px]">{t.consignee_profile || 'CONSIGNEE PROFILE'}</span>
                 <strong className="text-slate-800 text-[11px] block">{printOrder.customerName}</strong>
                 <span className="text-slate-500">{printOrder.customerEmail}</span>
               </div>
               <div>
-                <span className="text-slate-400 font-mono block text-[9px]">SHIPMENT LEDGER ID</span>
+                <span className="text-slate-400 font-mono block text-[9px]">{t.shipment_ledger_id || 'SHIPMENT LEDGER ID'}</span>
                 <strong className="font-mono text-slate-800 block text-[11px]">{printOrder.id}</strong>
-                <span className="text-slate-500 font-mono">DATE: {new Date(printOrder.date).toLocaleDateString()}</span>
+                <span className="text-slate-500 font-mono">DATE: {new Date(printOrder.date).toLocaleDateString(settings.language === 'fr' ? 'fr-FR' : 'en-US')}</span>
               </div>
             </div>
 
             {/* Shipping Address details */}
             <div className="py-3 border-b border-slate-100 text-[10.5px] leading-normal font-sans">
-              <span className="text-slate-400 font-mono text-[9px] block">DELIVERY DISPATCH BOUNDARY</span>
+              <span className="text-slate-400 font-mono text-[9px] block">{t.delivery_dispatch_boundary || 'DELIVERY DISPATCH BOUNDARY'}</span>
               <p className="font-semibold text-slate-800">{printOrder.shippingAddress.street}</p>
               <p className="text-slate-500">{printOrder.shippingAddress.city}, {printOrder.shippingAddress.zipCode}, {printOrder.shippingAddress.country}</p>
             </div>
 
             {/* Line items listed out */}
             <div className="space-y-3 py-4 border-b border-dashed border-slate-200">
-              <span className="text-slate-400 font-mono text-[9px] block">ITEMIZED DISPOSITION QUANTITIES</span>
+              <span className="text-slate-400 font-mono text-[9px] block">{t.itemized_disposition_quantities || 'ITEMIZED DISPOSITION QUANTITIES'}</span>
               <div className="space-y-1.5 font-mono text-[10px]">
                 {printOrder.items.map((it) => (
                   <div key={it.productId} className="flex justify-between items-center text-slate-605">
@@ -1712,36 +1736,36 @@ export const ShopLayout: React.FC = () => {
             {/* Ledger Totals */}
             <div className="space-y-1.5 py-4 font-mono text-[10.5px]">
               <div className="flex justify-between">
-                <span className="text-slate-500">Basket Subtotal</span>
+                <span className="text-slate-500">{t.basket_subtotal || 'Basket Subtotal'}</span>
                 <span className="font-medium text-slate-900">{settings.baseCurrency}{printOrder.subtotal.toFixed(2)}</span>
               </div>
               {printOrder.discount > 0 && (
                 <div className="flex justify-between text-rose-600 font-bold">
-                  <span>Trade Discount ({printOrder.promoCode})</span>
+                  <span>{t.trade_discount || 'Trade Discount'} ({printOrder.promoCode})</span>
                   <span>-{settings.baseCurrency}{printOrder.discount.toFixed(2)}</span>
                 </div>
               )}
               <div className="flex justify-between">
-                <span>Vessel Shipping Surcharge</span>
+                <span>{t.vessel_shipping_surcharge || 'Vessel Shipping Surcharge'}</span>
                 <span className="font-medium text-slate-900">{settings.baseCurrency}{printOrder.shipping.toFixed(2)}</span>
               </div>
               <div className="flex justify-between">
-                <span>Custom / Sales Tax Fee</span>
+                <span>{t.custom_sales_tax_fee || 'Custom / Sales Tax Fee'}</span>
                 <span className="font-medium text-slate-900">{settings.baseCurrency}{printOrder.tax.toFixed(2)}</span>
               </div>
               <div className="flex justify-between pt-2 border-t border-slate-300 text-xs font-black text-slate-900">
-                <span>CONSOLIDATED DISCHARGE</span>
+                <span>{t.consolidated_discharge || 'CONSOLIDATED DISCHARGE'}</span>
                 <span>{settings.baseCurrency}{printOrder.total.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-[9px] text-slate-400 pt-1">
-                <span>RECONCILIATION METHOD</span>
+                <span>{t.reconciliation_method || 'RECONCILIATION METHOD'}</span>
                 <span>{printOrder.paymentMethod.toUpperCase()}</span>
               </div>
             </div>
 
             {/* Digital signature bar */}
             <div className="my-3 p-3 bg-slate-50 border border-slate-100 rounded-xl text-center text-[9px] font-mono text-slate-400 leading-normal">
-              💳 Payment completed via secure API key. Authenticated user verified.<br/>
+              {t.payment_completed_secure_msg || '💳 Payment completed via secure API key. Authenticated user verified.'}<br/>
               Ather Object Laboratories Co • ID {printOrder.id.substring(0, 8)}
             </div>
 
@@ -1751,14 +1775,14 @@ export const ShopLayout: React.FC = () => {
                 onClick={() => setPrintOrder(null)}
                 className="flex-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 py-2.5 font-bold cursor-pointer text-center text-[10px] uppercase"
               >
-                Dismiss Ledger
+                {t.dismiss_ledger || 'Dismiss Ledger'}
               </button>
               <button
                 onClick={() => window.print()}
                 className="flex-1 rounded-xl bg-slate-900 hover:bg-slate-850 text-white py-2.5 font-bold cursor-pointer text-center text-[10px] uppercase flex items-center justify-center space-x-1.5"
               >
                 <Printer className="h-3.5 w-3.5" />
-                <span>Print Bill Dispatch</span>
+                <span>{t.print_bill_dispatch || 'Print Bill Dispatch'}</span>
               </button>
             </div>
 

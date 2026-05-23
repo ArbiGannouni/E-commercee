@@ -12,6 +12,7 @@ interface StoreSettings {
   taxRate: number; // e.g. 0.08
   shippingRate: number; // e.g. 15
   baseCurrency: string; // e.g. '$'
+  language?: 'en' | 'fr';
   showHeroBanner?: boolean;
   bannerType?: string;
   bannerImage?: string;
@@ -192,6 +193,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       taxRate: 0.08,
       shippingRate: 15.00,
       baseCurrency: '$',
+      language: 'en' as const,
       showHeroBanner: true,
       bannerType: 'classic-slate',
       bannerImage: 'https://images.unsplash.com/photo-1593642702821-c8da63116c2c?w=1600&q=80',

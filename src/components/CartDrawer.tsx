@@ -6,6 +6,7 @@
 import React, { useState } from 'react';
 import { useStore } from '../state/StoreContext';
 import { X, Plus, Minus, Trash2, Tag, Loader } from 'lucide-react';
+import { getTranslation } from '../utils/translations';
 
 export const CartDrawer: React.FC = () => {
   const {
@@ -20,6 +21,8 @@ export const CartDrawer: React.FC = () => {
     setView,
     settings
   } = useStore();
+
+  const t = getTranslation(settings.language);
 
   const [promoInput, setPromoInput] = useState('');
   const [promoMessage, setPromoMessage] = useState<{ text: string; isError: boolean } | null>(null);
@@ -85,10 +88,10 @@ export const CartDrawer: React.FC = () => {
               <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between">
                 <div className="flex items-center space-x-2">
                   <span className="font-display text-sm font-bold tracking-widest text-slate-900 uppercase">
-                    Your Selection
+                    {t.your_cart}
                   </span>
                   <span className="rounded-full bg-indigo-50 border border-indigo-100 px-2.5 py-0.5 text-[10px] font-semibold text-indigo-700">
-                    {cart.reduce((s, c) => s + c.quantity, 0)} Items
+                    {cart.reduce((s, c) => s + c.quantity, 0)} {settings.language === 'fr' ? 'Articles' : 'Items'}
                   </span>
                 </div>
                 <button
@@ -108,15 +111,15 @@ export const CartDrawer: React.FC = () => {
                     <div className="rounded-full bg-slate-50 p-6 mb-4">
                       <X className="h-8 w-8 text-slate-300 stroke-1" />
                     </div>
-                    <h3 className="font-display text-sm font-bold text-slate-900 animate-fade-in">Your selection drawer is empty</h3>
+                    <h3 className="font-display text-sm font-bold text-slate-900 animate-fade-in">{t.cart_empty}</h3>
                     <p className="mt-1 text-xs text-slate-400 max-w-xs leading-relaxed">
-                      Discover our artisan curated products and add genuine timeless instruments to your everyday environment.
+                      {settings.language === 'fr' ? 'Découvrez notre collection d’objets d’artisanat d’art et enrichissez votre bureau au quotidien.' : 'Discover our curated design selection and find the perfect objects for your workday visual landscape.'}
                     </p>
                     <button
                       onClick={() => setCartOpen(false)}
                       className="mt-6 rounded-lg bg-indigo-600 px-6 py-2.5 text-xs font-semibold text-white hover:bg-indigo-700 transition-all shadow-md shadow-indigo-100"
                     >
-                      Browse Modern Acquisitions
+                      {settings.language === 'fr' ? 'Explorer la Boutique' : 'Browse Modern Objects'}
                     </button>
                   </div>
                 ) : (
@@ -210,7 +213,7 @@ export const CartDrawer: React.FC = () => {
                   {!isFreeShipping && (
                     <div className="rounded-lg bg-amber-50 p-3 border border-amber-100 flex flex-col space-y-1.5 shadow-sm">
                       <div className="flex justify-between items-center text-[11px] text-amber-800 font-medium">
-                        <span>Spend {settings.baseCurrency}{(shippingThreshold - itemsTotal).toFixed(2)} more for Free Shipping</span>
+                        <span>{settings.language === 'fr' ? `Ajoutez ${settings.baseCurrency}${(shippingThreshold - itemsTotal).toFixed(2)} pour la Livraison Gratuite` : `Spend ${settings.baseCurrency}${(shippingThreshold - itemsTotal).toFixed(2)} more for Free Shipping`}</span>
                         <span className="font-semibold">{Math.round((itemsTotal / shippingThreshold) * 100)}%</span>
                       </div>
                       <div className="w-full bg-amber-100 h-1.5 rounded-full overflow-hidden">
@@ -228,13 +231,13 @@ export const CartDrawer: React.FC = () => {
                       <div className="flex items-center justify-between rounded-lg bg-emerald-50 border border-emerald-100 px-3 py-2 text-xs">
                         <div className="flex items-center space-x-2 text-emerald-800 font-medium">
                           <Tag className="h-3.5 w-3.5" />
-                          <span>Code: <strong>{activePromo.code}</strong> Applied</span>
+                          <span>{settings.language === 'fr' ? 'Code : ' : 'Code: '}<strong>{activePromo.code}</strong> {settings.language === 'fr' ? 'appliqué' : 'Applied'}</span>
                         </div>
                         <button 
                           onClick={handleRemovePromo}
                           className="text-slate-405 hover:text-indigo-600 text-[10px] font-semibold underline uppercase transition-colors"
                         >
-                          Remove
+                          {settings.language === 'fr' ? 'Retirer' : 'Remove'}
                         </button>
                       </div>
                     ) : (
@@ -245,7 +248,7 @@ export const CartDrawer: React.FC = () => {
                               type="text"
                               value={promoInput}
                               onChange={(e) => setPromoInput(e.target.value)}
-                              placeholder="PROMO CODE (e.g., WELCOME10)"
+                              placeholder={settings.language === 'fr' ? "CODE PROMO (ex: WELCOME10)" : "PROMO CODE (e.g., WELCOME10)"}
                               className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 pl-8 text-[11px] font-mono outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                             />
                             <Tag className="absolute left-2.5 top-3 h-3.5 w-3.5 text-slate-400" />
@@ -255,7 +258,7 @@ export const CartDrawer: React.FC = () => {
                             disabled={isApplying || !promoInput.trim()}
                             className="rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-700 disabled:opacity-40 transition-colors shadow-sm"
                           >
-                            {isApplying ? <Loader className="h-3.5 w-3.5 animate-spin" /> : 'Apply'}
+                            {isApplying ? <Loader className="h-3.5 w-3.5 animate-spin" /> : (settings.language === 'fr' ? 'Valider' : 'Apply')}
                           </button>
                         </div>
                         {promoMessage && (
@@ -270,27 +273,27 @@ export const CartDrawer: React.FC = () => {
                   {/* Calculations Details */}
                   <div className="space-y-2 text-xs">
                     <div className="flex justify-between text-slate-500">
-                      <span>Subtotal</span>
+                      <span>{t.subtotal}</span>
                       <span className="font-mono">{settings.baseCurrency}{subtotal.toFixed(2)}</span>
                     </div>
                     {discount > 0 && (
                       <div className="flex justify-between text-emerald-600 font-semibold font-mono">
-                        <span>Discount ({discountPercent}%)</span>
+                        <span>{settings.language === 'fr' ? 'Remise' : 'Discount'} ({discountPercent}%)</span>
                         <span>-{settings.baseCurrency}{discount.toFixed(2)}</span>
                       </div>
                     )}
                     <div className="flex justify-between text-slate-500">
-                      <span>Shipping</span>
+                      <span>{t.shipping}</span>
                       <span className="font-semibold font-mono">
-                        {shipping === 0 ? 'FREE' : `${settings.baseCurrency}${shipping.toFixed(2)}`}
+                        {shipping === 0 ? (settings.language === 'fr' ? 'GRATUIT' : 'FREE') : `${settings.baseCurrency}${shipping.toFixed(2)}`}
                       </span>
                     </div>
                     <div className="flex justify-between text-slate-500">
-                      <span>Tax ({settings.taxRate * 100}%)</span>
+                      <span>{t.tax} ({settings.taxRate * 100}%)</span>
                       <span className="font-mono">{settings.baseCurrency}{calculatedTax.toFixed(2)}</span>
                     </div>
                     <div className="border-t border-slate-200 mt-2 pt-3 flex justify-between items-baseline text-slate-900">
-                      <span className="font-bold text-sm">Estimated Total</span>
+                      <span className="font-bold text-sm">{settings.language === 'fr' ? 'Total Estimé' : 'Estimated Total'}</span>
                       <span className="font-mono text-lg font-bold text-indigo-600">
                         {settings.baseCurrency}{grandTotal.toFixed(2)}
                       </span>
@@ -304,10 +307,12 @@ export const CartDrawer: React.FC = () => {
                       className="w-full rounded-xl bg-indigo-600 py-3.5 text-center text-xs font-bold uppercase tracking-widest text-white hover:bg-indigo-700 shadow-md shadow-indigo-100 transition-all active:scale-98"
                       id="checkout-trigger-btn"
                     >
-                      Request Formal Checkout
+                      {t.checkout}
                     </button>
                     <p className="text-[10px] text-center text-slate-400 mt-2 leading-relaxed">
-                      All custom quotes include state taxes. Instant escrow tracking codes is issued upon request submission.
+                      {settings.language === 'fr' 
+                        ? "Chaque commande personnalisée comprend les taxes provinciales/d'état. Les codes d'entiercement sécurisés sont émis sur demande."
+                        : "All custom quotes include state taxes. Instant escrow tracking codes is issued upon request submission."}
                     </p>
                   </div>
                 </div>

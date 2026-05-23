@@ -180,12 +180,12 @@ export const AdminPanel: React.FC = () => {
   const [isGeneratingSeo, setIsGeneratingSeo] = useState(false);
   const [seoError, setSeoError] = useState<string | null>(null);
 
-  // Purchase Price & AI pricing advisory states
+   // Purchase Price & AI pricing advisory states
   const [newProdPurchasePrice, setNewProdPurchasePrice] = useState<number | ''>('');
   const [isSuggestingPrice, setIsSuggestingPrice] = useState(false);
   const [priceSuggestError, setPriceSuggestError] = useState<string | null>(null);
-  const [newProdPriceSuggestion, setNewProdPriceSuggestion] = useState<{ recommendedPrice: number; markupPercent: number; marginPercent: number; explanation: string } | null>(null);
-  const [editProdPriceSuggestion, setEditProdPriceSuggestion] = useState<{ recommendedPrice: number; markupPercent: number; marginPercent: number; explanation: string } | null>(null);
+  const [newProdPriceSuggestion, setNewProdPriceSuggestion] = useState<{ recommendedPrice: number; originalPrice?: number; markupPercent: number; marginPercent: number; explanation: string } | null>(null);
+  const [editProdPriceSuggestion, setEditProdPriceSuggestion] = useState<{ recommendedPrice: number; originalPrice?: number; markupPercent: number; marginPercent: number; explanation: string } | null>(null);
 
   // Custom Category States
   const [isCustomCategory, setIsCustomCategory] = useState(false);
@@ -1106,21 +1106,34 @@ export const AdminPanel: React.FC = () => {
                     <div className="flex items-center justify-between">
                       <div className="space-y-0.5">
                         <span className="block text-[8.5px] font-mono text-slate-400 uppercase tracking-wider">Suggested Retail Price</span>
-                        <span className="text-sm font-bold text-emerald-600 font-mono">
-                          {settings.baseCurrency} {newProdPriceSuggestion.recommendedPrice.toFixed(2)}
-                        </span>
+                        <div className="flex items-baseline space-x-2">
+                          <span className="text-sm font-bold text-emerald-600 font-mono">
+                            {settings.baseCurrency} {newProdPriceSuggestion.recommendedPrice.toFixed(2)}
+                          </span>
+                          {newProdPriceSuggestion.originalPrice && (
+                            <span className="text-[10px] text-slate-405 line-through font-mono">
+                              {settings.baseCurrency} {newProdPriceSuggestion.originalPrice.toFixed(2)}
+                            </span>
+                          )}
+                        </div>
                       </div>
                       <div className="flex space-x-3 text-right">
                         <div>
                           <span className="block text-[8.5px] font-mono text-slate-400 uppercase tracking-wider">Markup Coeff.</span>
-                          <span className="text-xs font-semibold text-slate-700 font-mono">
-                            {newProdPriceSuggestion.markupPercent.toFixed(1)}% Markup
+                          <span className="text-[10.5px] font-semibold text-slate-700 font-mono">
+                            {newProdPriceSuggestion.markupPercent.toFixed(1)}%
                           </span>
                         </div>
                         <div>
                           <span className="block text-[8.5px] font-mono text-slate-400 uppercase tracking-wider">Profit Margin</span>
-                          <span className="text-xs font-semibold text-indigo-600 font-mono">
-                            {newProdPriceSuggestion.marginPercent.toFixed(1)}% Margin
+                          <span className="text-[10.5px] font-semibold text-indigo-600 font-mono">
+                            {newProdPriceSuggestion.marginPercent.toFixed(1)}%
+                          </span>
+                        </div>
+                        <div>
+                          <span className="block text-[8.5px] font-mono text-emerald-500 font-bold uppercase tracking-wider">Net Profit</span>
+                          <span className="text-xs font-extrabold text-emerald-600 font-mono block bg-emerald-50/50 px-1.5 py-0.5 rounded border border-emerald-100/50">
+                            +{settings.baseCurrency}{(newProdPriceSuggestion.recommendedPrice - (Number(newProdPurchasePrice) || 0)).toFixed(2)}
                           </span>
                         </div>
                       </div>
@@ -1132,11 +1145,15 @@ export const AdminPanel: React.FC = () => {
                       type="button"
                       onClick={() => {
                         setNewProdPrice(newProdPriceSuggestion.recommendedPrice);
-                        setNewProdOrigPrice(0);
+                        if (newProdPriceSuggestion.originalPrice) {
+                          setNewProdOrigPrice(newProdPriceSuggestion.originalPrice);
+                        } else {
+                          setNewProdOrigPrice(0);
+                        }
                       }}
                       className="w-full text-center py-1 bg-slate-900 text-white text-[10px] font-bold tracking-wider uppercase hover:bg-emerald-650 rounded-md transition-colors cursor-pointer"
                     >
-                      Apply Recommended Price
+                      Apply Recommended Price & Cutoff
                     </button>
                   </div>
                 )}
@@ -1381,21 +1398,34 @@ export const AdminPanel: React.FC = () => {
                     <div className="flex items-center justify-between">
                       <div className="space-y-0.5">
                         <span className="block text-[8.5px] font-mono text-slate-400 uppercase tracking-wider">Suggested Retail Price</span>
-                        <span className="text-sm font-bold text-emerald-600 font-mono">
-                          {settings.baseCurrency} {editProdPriceSuggestion.recommendedPrice.toFixed(2)}
-                        </span>
+                        <div className="flex items-baseline space-x-2">
+                          <span className="text-sm font-bold text-emerald-600 font-mono">
+                            {settings.baseCurrency} {editProdPriceSuggestion.recommendedPrice.toFixed(2)}
+                          </span>
+                          {editProdPriceSuggestion.originalPrice && (
+                            <span className="text-[10px] text-slate-405 line-through font-mono">
+                              {settings.baseCurrency} {editProdPriceSuggestion.originalPrice.toFixed(2)}
+                            </span>
+                          )}
+                        </div>
                       </div>
                       <div className="flex space-x-3 text-right">
                         <div>
                           <span className="block text-[8.5px] font-mono text-slate-400 uppercase tracking-wider">Markup Coeff.</span>
-                          <span className="text-xs font-semibold text-slate-700 font-mono">
-                            {editProdPriceSuggestion.markupPercent.toFixed(1)}% Markup
+                          <span className="text-[10.5px] font-semibold text-slate-700 font-mono">
+                            {editProdPriceSuggestion.markupPercent.toFixed(1)}%
                           </span>
                         </div>
                         <div>
                           <span className="block text-[8.5px] font-mono text-slate-400 uppercase tracking-wider">Profit Margin</span>
-                          <span className="text-xs font-semibold text-indigo-600 font-mono">
-                            {editProdPriceSuggestion.marginPercent.toFixed(1)}% Margin
+                          <span className="text-[10.5px] font-semibold text-indigo-600 font-mono">
+                            {editProdPriceSuggestion.marginPercent.toFixed(1)}%
+                          </span>
+                        </div>
+                        <div>
+                          <span className="block text-[8.5px] font-mono text-emerald-500 font-bold uppercase tracking-wider">Net Profit</span>
+                          <span className="text-xs font-extrabold text-emerald-600 font-mono block bg-emerald-50/50 px-1.5 py-0.5 rounded border border-emerald-100/50">
+                            +{settings.baseCurrency}{(editProdPriceSuggestion.recommendedPrice - (Number(editingProduct.purchasePrice) || 0)).toFixed(2)}
                           </span>
                         </div>
                       </div>
@@ -1409,12 +1439,12 @@ export const AdminPanel: React.FC = () => {
                         setEditingProduct({
                           ...editingProduct,
                           price: editProdPriceSuggestion.recommendedPrice,
-                          originalPrice: undefined
+                          originalPrice: editProdPriceSuggestion.originalPrice || undefined
                         });
                       }}
                       className="w-full text-center py-1 bg-slate-900 text-white text-[10px] font-bold tracking-wider uppercase hover:bg-emerald-650 rounded-md transition-colors cursor-pointer"
                     >
-                      Apply Recommended Price
+                      Apply Recommended Price & Cutoff
                     </button>
                   </div>
                 )}
@@ -1573,10 +1603,13 @@ export const AdminPanel: React.FC = () => {
                         {p.purchasePrice !== undefined ? `${settings.baseCurrency}${p.purchasePrice.toFixed(2)}` : '—'}
                       </td>
                       <td className="px-4 py-3 font-mono text-slate-900 leading-tight">
-                        <div className="font-bold">{settings.baseCurrency}{p.price.toFixed(2)}</div>
+                        <div className="font-bold text-[13px]">{settings.baseCurrency}{p.price.toFixed(2)}</div>
                         {p.purchasePrice !== undefined && p.purchasePrice > 0 && (
-                          <div className="text-[10px] text-emerald-600 font-semibold font-mono">
-                            +{(((p.price - p.purchasePrice) / p.purchasePrice) * 100).toFixed(0)}% markup
+                          <div className="text-[10px] font-mono mt-0.5 space-y-0.5">
+                            <div className="text-emerald-600 font-semibold">+{(((p.price - p.purchasePrice) / p.purchasePrice) * 100).toFixed(0)}% markup</div>
+                            <div className="text-slate-500 font-normal">
+                              Net Profit: <span className="text-emerald-700 font-bold">{settings.baseCurrency}{(p.price - p.purchasePrice).toFixed(2)}</span>
+                            </div>
                           </div>
                         )}
                       </td>
@@ -2839,6 +2872,20 @@ export const AdminPanel: React.FC = () => {
 
                 {openSettingsSections.operational && (
                   <div className="p-5 space-y-4 border-t border-slate-50 animate-fade-in bg-white">
+                  <div>
+                    <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 mb-1">
+                      {settings.language === 'fr' ? "Langue par défaut de la boutique" : "Store Interface Language"}
+                    </label>
+                    <select
+                      className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 px-2.5 text-xs font-mono outline-none focus:bg-white focus:border-indigo-700 text-slate-800 font-bold"
+                      value={settings.language || 'en'}
+                      onChange={(e) => updateSettings({ language: e.target.value as 'en' | 'fr' })}
+                    >
+                      <option value="en">English (Anglais)</option>
+                      <option value="fr">Français (French)</option>
+                    </select>
+                  </div>
+
                   <div>
                     <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 mb-1">
                       Active Currency Spec
