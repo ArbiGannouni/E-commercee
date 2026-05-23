@@ -12,7 +12,8 @@ import {
   Settings, Trash2, Edit3, Plus, Sliders, CheckCircle, 
   ArrowRight, ShieldAlert, Lock, Sparkles, Filter, Search, ArrowUp, ArrowDown,
   Palette, Mail, Bell, MessageCircle, MessageSquare,
-  Database, Server, CloudLightning, RefreshCw, Key, Globe
+  Database, Server, CloudLightning, RefreshCw, Key, Globe,
+  Upload, Image as ImageIcon
 } from 'lucide-react';
 import { SALES_TRENDS } from '../data/mockProducts';
 
@@ -177,6 +178,57 @@ export const AdminPanel: React.FC = () => {
   const [passwordSavedEmail, setPasswordSavedEmail] = useState<string | null>(null);
   const [newProdHighlight, setNewProdHighlight] = useState('');
   const [newProdTags, setNewProdTags] = useState('');
+
+  // States and handler for image / photo uploading
+  const [isDraggingCreation, setIsDraggingCreation] = useState(false);
+  const [isDraggingEditing, setIsDraggingEditing] = useState(false);
+
+  const handleImageUpload = (files: FileList | null, isEditing: boolean) => {
+    if (!files) return;
+    Array.from(files).forEach((file) => {
+      if (!file.type.startsWith('image/')) return;
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const dataUrl = event.target?.result as string;
+        if (!dataUrl) return;
+
+        if (isEditing) {
+          setEditingProduct(prev => {
+            if (!prev) return prev;
+            const currentImages = prev.images || [];
+            const primaryIsSet = !!prev.image;
+            const newPrimary = primaryIsSet ? prev.image : dataUrl;
+            
+            // Append to images list if it's not already in it
+            const updatedImages = currentImages.includes(dataUrl) 
+              ? currentImages 
+              : [...currentImages, dataUrl];
+
+            return {
+              ...prev,
+              image: newPrimary,
+              images: updatedImages
+            };
+          });
+        } else {
+          setNewProdImage(prevMain => {
+            const finalMain = prevMain ? prevMain : dataUrl;
+            setNewProdImages(prevSub => {
+              const currentList = prevSub 
+                ? prevSub.split(/[\n,]/).map(x => x.trim()).filter(Boolean)
+                : [];
+              if (!currentList.includes(dataUrl)) {
+                return [...currentList, dataUrl].join('\n');
+              }
+              return prevSub;
+            });
+            return finalMain;
+          });
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+  };
 
   // SEO states for new products and AI workers
   const [newProdSeoTitle, setNewProdSeoTitle] = useState('');
@@ -1177,6 +1229,104 @@ export const AdminPanel: React.FC = () => {
                 )}
               </div>
 
+              {/* Direct Multi-Image Photo Upload Zone */}
+              <div className="space-y-2 p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                <span className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400">
+                  📁 Direct Image Upload & Gallery Builder
+                </span>
+                
+                {/* Drag & Drop Box */}
+                <div
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setIsDraggingCreation(true);
+                  }}
+                  onDragLeave={() => setIsDraggingCreation(false)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setIsDraggingCreation(false);
+                    handleImageUpload(e.dataTransfer.files, false);
+                  }}
+                  onClick={() => {
+                    const uploader = document.getElementById('create-photo-uploader');
+                    if (uploader) uploader.click();
+                  }}
+                  className={`border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-all duration-250 ${
+                    isDraggingCreation
+                      ? 'border-indigo-500 bg-indigo-50/50'
+                      : 'border-slate-300 hover:border-slate-400 bg-white'
+                  }`}
+                >
+                  <input
+                    id="create-photo-uploader"
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => handleImageUpload(e.target.files, false)}
+                  />
+                  <Upload className="h-5 w-5 mx-auto text-slate-400 mb-1" />
+                  <p className="text-[11px] text-slate-600 font-medium">
+                    Drag & Drop multiple images here, or <span className="text-indigo-600 font-bold">browse files</span>
+                  </p>
+                  <p className="text-[9px] text-slate-400 mt-0.5">Supports PNG, JPG, WEBP formats</p>
+                </div>
+
+                {/* Previews Grid with Deletion */}
+                {(() => {
+                  const allImgs = [
+                    ...(newProdImage ? [newProdImage] : []),
+                    ...(newProdImages 
+                      ? newProdImages.split(/[\n,]/).map((x: string) => x.trim()).filter(Boolean) 
+                      : []
+                    )
+                  ].filter((val, i, self) => self.indexOf(val) === i);
+
+                  if (allImgs.length === 0) return null;
+
+                  return (
+                    <div className="space-y-1.5 pt-2">
+                      <span className="text-[9px] font-mono text-slate-400 font-semibold block">
+                        Assigned Images ({allImgs.length}) — Click red icon to remove:
+                      </span>
+                      <div className="grid grid-cols-5 gap-2">
+                        {allImgs.map((img, idx) => (
+                          <div key={idx} className="relative group aspect-square rounded border border-slate-200 overflow-hidden bg-slate-100">
+                            <img
+                              src={img}
+                              alt=""
+                              className="h-full w-full object-cover"
+                            />
+                            {idx === 0 && (
+                              <span className="absolute bottom-0 left-0 right-0 bg-indigo-600 text-white text-[7px] font-bold text-center py-0.5">
+                                MAIN
+                              </span>
+                            )}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const filtered = allImgs.filter(item => item !== img);
+                                if (filtered.length === 0) {
+                                  setNewProdImage('');
+                                  setNewProdImages('');
+                                } else {
+                                  setNewProdImage(filtered[0]);
+                                  setNewProdImages(filtered.slice(1).join('\n'));
+                                }
+                              }}
+                              className="absolute -top-1 -right-1 bg-rose-600 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-rose-700 shadow-sm"
+                            >
+                              <Trash2 className="h-2.5 w-2.5" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+
               <div>
                 <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 mb-1">Image Web Address (Primary)</label>
                 <input
@@ -1492,6 +1642,107 @@ export const AdminPanel: React.FC = () => {
 
               {/* Product Image URL with Premium Thumbnail Preview */}
               <div className="space-y-4">
+                {/* Direct Multi-Image Photo Upload Zone */}
+                <div className="space-y-2 p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                  <span className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400">
+                    📁 Direct Image Upload & Gallery Builder
+                  </span>
+                  
+                  {/* Drag & Drop Box */}
+                  <div
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      setIsDraggingEditing(true);
+                    }}
+                    onDragLeave={() => setIsDraggingEditing(false)}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setIsDraggingEditing(false);
+                      handleImageUpload(e.dataTransfer.files, true);
+                    }}
+                    onClick={() => {
+                      const uploader = document.getElementById('edit-photo-uploader');
+                      if (uploader) uploader.click();
+                    }}
+                    className={`border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-all duration-250 ${
+                      isDraggingEditing
+                        ? 'border-indigo-500 bg-indigo-50/50'
+                        : 'border-slate-300 hover:border-slate-400 bg-white'
+                    }`}
+                  >
+                    <input
+                      id="edit-photo-uploader"
+                      type="file"
+                      multiple
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => handleImageUpload(e.target.files, true)}
+                    />
+                    <Upload className="h-5 w-5 mx-auto text-slate-400 mb-1" />
+                    <p className="text-[11px] text-slate-600 font-medium">
+                      Drag & Drop multiple images here, or <span className="text-indigo-600 font-bold">browse files</span>
+                    </p>
+                    <p className="text-[9px] text-slate-400 mt-0.5">Supports PNG, JPG, WEBP formats</p>
+                  </div>
+
+                  {/* Previews Grid with Deletion */}
+                  {(() => {
+                    const allImgs = [
+                      ...(editingProduct.image ? [editingProduct.image] : []),
+                      ...(editingProduct.images || [])
+                    ].filter((val, i, self) => self.indexOf(val) === i);
+
+                    if (allImgs.length === 0) return null;
+
+                    return (
+                      <div className="space-y-1.5 pt-2">
+                        <span className="text-[9px] font-mono text-slate-400 font-semibold block">
+                          Assigned Images ({allImgs.length}) — Click red icon to remove:
+                        </span>
+                        <div className="grid grid-cols-5 gap-2">
+                          {allImgs.map((img, idx) => (
+                            <div key={idx} className="relative group aspect-square rounded border border-slate-200 overflow-hidden bg-slate-100">
+                              <img
+                                src={img}
+                                alt=""
+                                className="h-full w-full object-cover"
+                              />
+                              {idx === 0 || img === editingProduct.image ? (
+                                <span className="absolute bottom-0 left-0 right-0 bg-indigo-600 text-white text-[7px] font-bold text-center py-0.5">
+                                  MAIN
+                                </span>
+                              ) : null}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const filtered = allImgs.filter(item => item !== img);
+                                  if (filtered.length === 0) {
+                                    setEditingProduct({
+                                      ...editingProduct,
+                                      image: '',
+                                      images: []
+                                    });
+                                  } else {
+                                    setEditingProduct({
+                                      ...editingProduct,
+                                      image: filtered[0],
+                                      images: filtered.slice(1)
+                                    });
+                                  }
+                                }}
+                                className="absolute -top-1 -right-1 bg-rose-600 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-rose-700 shadow-sm"
+                              >
+                                <Trash2 className="h-2.5 w-2.5" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+
                 <div className="space-y-2">
                   <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400">Primary Product Image URL</label>
                   <div className="flex items-center space-x-4">
