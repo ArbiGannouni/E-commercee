@@ -25,6 +25,38 @@ async function connectToDatabase() {
   return { client, db };
 }
 
+// Robust helper to parse body from streams under different cloud hosting runtimes
+async function parseRequestBody(req) {
+  if (req.body) {
+    if (typeof req.body === 'string') {
+      try {
+        return JSON.parse(req.body);
+      } catch (e) {
+        // Fall through to manual stream parsing
+      }
+    } else {
+      return req.body;
+    }
+  }
+
+  return new Promise((resolve) => {
+    let bodyData = '';
+    req.on('data', chunk => {
+      bodyData += chunk;
+    });
+    req.on('end', () => {
+      try {
+        resolve(bodyData ? JSON.parse(bodyData) : {});
+      } catch (e) {
+        resolve({});
+      }
+    });
+    req.on('error', () => {
+      resolve({});
+    });
+  });
+}
+
 export default async function handler(req, res) {
   // Setup CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -49,18 +81,10 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'POST') {
-      // For Vercel/Express compat, parse body if it is still a string
-      let body = req.body;
-      if (typeof body === 'string') {
-        try {
-          body = JSON.parse(body);
-        } catch (e) {
-          return res.status(400).json({ error: 'Invalid JSON body string' });
-        }
-      }
+      let body = await parseRequestBody(req);
 
-      if (!body) {
-        return res.status(400).json({ error: 'Missing request body' });
+      if (!body || Object.keys(body).length === 0) {
+        return res.status(400).json({ error: 'Missing or empty request body' });
       }
 
       // Option 1: Saved as single key and data

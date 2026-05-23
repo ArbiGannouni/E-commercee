@@ -12,7 +12,7 @@ function getAIClient() {
   if (!ai) {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      throw new Error('GEMINI_API_KEY environment variable is required but missing.');
+      throw new Error('GEMINI_API_KEY environment variable is missing.');
     }
     ai = new GoogleGenAI({
       apiKey: apiKey,
@@ -24,6 +24,38 @@ function getAIClient() {
     });
   }
   return ai;
+}
+
+// Helper to reliably parse request body from streams across Vercel and Express
+async function parseRequestBody(req) {
+  if (req.body) {
+    if (typeof req.body === 'string') {
+      try {
+        return JSON.parse(req.body);
+      } catch (e) {
+        // Fall through to manual stream parsing
+      }
+    } else {
+      return req.body;
+    }
+  }
+
+  return new Promise((resolve) => {
+    let bodyData = '';
+    req.on('data', chunk => {
+      bodyData += chunk;
+    });
+    req.on('end', () => {
+      try {
+        resolve(bodyData ? JSON.parse(bodyData) : {});
+      } catch (e) {
+        resolve({});
+      }
+    });
+    req.on('error', () => {
+      resolve({});
+    });
+  });
 }
 
 export default async function handler(req, res) {
@@ -41,33 +73,63 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
+  let productName = '';
+  let purchasePrice = 0;
+  let category = '';
+  let description = '';
+
   try {
-    let body = req.body;
-    if (typeof body === 'string') {
-      try {
-        body = JSON.parse(body);
-      } catch (e) {
-        res.setHeader('Content-Type', 'application/json');
-        return res.status(400).json({ error: 'Invalid JSON body string' });
-      }
-    }
+    const parsed = await parseRequestBody(req);
+    productName = parsed.productName || 'Artisan Accessory';
+    purchasePrice = parsed.purchasePrice !== undefined ? Number(parsed.purchasePrice) : 0;
+    category = parsed.category || 'Artisan Design';
+    description = parsed.description || 'Premium design coordinates.';
+  } catch (err) {
+    console.warn('Body stream parsing warning in pricing advisor:', err);
+  }
 
-    const { productName, purchasePrice, category, description } = body || {};
+  if (!purchasePrice || isNaN(purchasePrice) || purchasePrice <= 0) {
+    res.setHeader('Content-Type', 'application/json');
+    return res.status(400).json({ error: 'Missing or invalid purchasePrice (Achat TTC) parameter' });
+  }
 
-    if (!purchasePrice || isNaN(Number(purchasePrice))) {
-      res.setHeader('Content-Type', 'application/json');
-      return res.status(400).json({ error: 'Missing or invalid purchasePrice (Achat TTC) parameter' });
-    }
+  // Define high-quality local math calculation fallback
+  const costPrice = Number(purchasePrice);
+  
+  // Luxury goods pricing heuristics:
+  // Apply a standard 2.4x retail markup coefficient and make the ending price look sleek (e.g., .00, .90)
+  let rawRecommended = costPrice * 2.45;
+  let recommendedPrice = Math.round(rawRecommended);
+  if (recommendedPrice < costPrice + 1) {
+    recommendedPrice = Math.ceil(costPrice * 1.5);
+  } else if (recommendedPrice > 10) {
+    // Round to nearest sleek terminal digits
+    const rem = recommendedPrice % 10;
+    if (rem === 1 || rem === 2) recommendedPrice = recommendedPrice - rem; // Round down to .00
+    else if (rem === 8 || rem === 9) recommendedPrice = recommendedPrice + (10 - rem); // Round up to .00
+    else if (rem === 4) recommendedPrice = recommendedPrice + 1; // Round up to .50 or .00 ending
+  }
+  
+  const markupPercent = ((recommendedPrice - costPrice) / costPrice) * 100;
+  const marginPercent = ((recommendedPrice - costPrice) / recommendedPrice) * 100;
 
-    const clientPurchasePrice = Number(purchasePrice);
+  const fallbackResult = {
+    recommendedPrice: Number(recommendedPrice.toFixed(2)),
+    markupPercent: Number(markupPercent.toFixed(1)),
+    marginPercent: Number(marginPercent.toFixed(1)),
+    explanation: `Calculated from AETHER Premium Heritage Heuristic. Applied an industry-standard 2.45x design markup for workspace assets to protect creative sustainability. (Set Vercel GEMINI_API_KEY environment variable for bespoke AI analysis!)`,
+    isFallback: true
+  };
+
+  try {
     const aiClient = getAIClient();
 
     const prompt = `You are a high-end retail pricing consultant for a premium artisan store called 'AETHER OBJECTS'.
 Analyze the following product information:
-- Product Name: ${productName || 'Artisan Accessory'}
-- Category: ${category || 'Artisan Design'}
-- Original Description: ${description || 'Premium design coordinates.'}
-- Purchase Price (Cost, Achat TTC): ${clientPurchasePrice}
+- Product Name: ${productName}
+- Category: ${category}
+- Original Description: ${description}
+- Purchase Price (Cost, Achat TTC): ${costPrice}
 
 Your task is to calculate and recommend an optimal, well-considered Retail Price (Prix de Vente TTC).
 Consider standard premium markup:
@@ -116,14 +178,14 @@ Please calculate:
     const pricingResult = JSON.parse(outputText.trim());
 
     res.setHeader('Content-Type', 'application/json');
-    return res.status(200).json(pricingResult);
+    return res.status(200).json({
+      ...pricingResult,
+      isFallback: false
+    });
 
   } catch (err) {
-    console.error('Gemini AI Price Suggestion handler failed:', err);
+    console.error('Gemini AI Price Suggestion model call failed, fallback calculation provided:', err);
     res.setHeader('Content-Type', 'application/json');
-    return res.status(500).json({ 
-      error: 'Gemini Pricing Advisory Generation Failure', 
-      details: err.message 
-    });
+    return res.status(200).json(fallbackResult);
   }
 }
